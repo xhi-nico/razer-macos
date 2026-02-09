@@ -32,13 +32,20 @@ export class RazerDeviceManager {
     this.closeDevices();
 
     const devicePromises = this.addon.getAllDevices().map(async foundDevice => {
-      const configurationDevice = this.razerConfigDevices.find(d => d.productId === foundDevice.productId);
+      // CHANGE: configuration devices already store productId as a number (parsed in getAllRazerDeviceConfigurations)
+      // so compare numbers-to-numbers, and defensively coerce foundDevice.productId to a number
+      const foundProductId = typeof foundDevice.productId === 'string'
+        ? parseInt(foundDevice.productId, 10)
+        : foundDevice.productId;
+
+      const configurationDevice = this.razerConfigDevices.find(d => d.productId === foundProductId);
       if (configurationDevice === undefined) {
         return null;
       }
+
       const razerProperties = {
         name: configurationDevice.name,
-        productId: foundDevice.productId,
+        productId: foundProductId,
         internalId: foundDevice.internalDeviceId,
         mainType: configurationDevice.mainType,
         image: configurationDevice.image,
@@ -46,6 +53,7 @@ export class RazerDeviceManager {
         featuresMissing: configurationDevice.featuresMissing,
         featuresConfig: configurationDevice.featuresConfig,
       };
+
       const razerDevice = this.createRazerDeviceFrom(razerProperties);
       return razerDevice.init();
     });
