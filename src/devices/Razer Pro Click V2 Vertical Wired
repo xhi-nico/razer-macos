@@ -1,0 +1,23 @@
+{
+  "name": "Razer Pro Click V2 Vertical Wired",
+  "productId": "0x00c7",
+  "mainType": "mouse",
+  "image": "https://assets.razerzone.com/eeimages/support/products/1714/comp_1_00000.png",
+  "features": null,
+  "featuresMissing": ["waveSimple","oldMouseEffects"],
+  "featuresConfig": [
+    {
+      "dpi": {
+        "max": 30000
+      }
+    },
+    {
+      "mouseBrightness": {
+        "enabledMatrix": false,
+        "enabledLeft": false,
+        "enabledRight": false,
+        "enabledScroll": false
+      }
+    }
+  ]
+}
