@@ -1,6 +1,6 @@
 [submodule "librazermacos"]
 	path = librazermacos
-	url = git@github.com:94lucasm/librazermacos.git
+	url = git@github.com:xhi-nico/librazermacos.git
 	branch = master
 [submodule "iohook"]
 	path = iohook
