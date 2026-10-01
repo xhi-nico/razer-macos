@@ -1,6 +1,3 @@
 [submodule "librazermacos"]
 	path = librazermacos
-	url = git@github.com:xhi-nico/librazermacos.git
-[submodule "iohook"]
-	path = iohook
-	url = https://github.com/overcurrent/iohook
+	url = https://github.com/xhi-nico/librazermacos.git

@@ -1,0 +1,26 @@
+name: ci
+# Hosted verification, the same command an author runs locally. macOS, since the native
+# addon links IOKit.
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: bash scripts/verify.sh

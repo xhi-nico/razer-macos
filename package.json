@@ -51,7 +51,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "uefigs139",
+        "owner": "xhi-nico",
         "repo": "razer-macos"
       }
     ],
