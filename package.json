@@ -59,7 +59,8 @@
       "category": "public.app-category.developer-tools",
       "icon": "icon.icns",
       "type": "distribution",
-      "hardenedRuntime": "true",
+      "hardenedRuntime": false,
+      "identity": "-",
       "target": [
         {
           "target": "dmg",

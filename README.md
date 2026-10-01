@@ -241,13 +241,7 @@ Ensure xcode command line tools are installed.
 Node 20.19 or newer is required (Vite 8). The build uses electron-vite, not the archived
 electron-webpack that upstream still uses.
 
-If you have a paid Apple Developer account, edit `release.sh` with your details.
-
- Afterwards, to automatically build, sign, and/or notarize (if applicable,) run in Terminal: `./release.sh`
-
- Ad-hoc signing will be used if account information is left empty.
-
-
+For a clean build from scratch, run `./release.sh`.
 
  Or build manually:
 
@@ -267,9 +261,8 @@ For building a distribution ready app and dmg:
 
     yarn dist
 
-Sign the universal package before moving to /Applications folder with ad-hoc signing:
-
-    codesign -s - --deep --force ./dist/mac-universal/Razer\ macOS.app
+The app is ad-hoc signed during the build (there is no Developer ID, so it is not notarized).
+The installer is `dist/Razer macOS-<version>-universal.dmg`.
 
 ## Implementation
 

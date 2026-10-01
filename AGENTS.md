@@ -9,8 +9,8 @@ Fork of [slicke/razer-macos](https://github.com/slicke/razer-macos) (remote `ups
 - Verify: `scripts/verify.sh` (device files, native addon, app bundle). CI runs it on macOS.
 - Dev: `yarn dev`. The app has no Dock icon or window; look for the menu bar icon (named
   "Electron" in dev). After changing `librazermacos`, run `yarn rebuild`.
-- Package: `yarn dist`, then `codesign -s - --deep --force "dist/mac-universal/Razer macOS.app"`.
-  Output is `dist/*.dmg`. There is no Developer ID, so builds are ad-hoc signed and not notarized.
+- Package: `yarn dist`, output `dist/*.dmg`. There is no Developer ID, so the build signs ad-hoc
+  and is not notarized; hardened runtime stays off, since it blocks ad-hoc signed libraries.
 
 ## Adding a device
 
