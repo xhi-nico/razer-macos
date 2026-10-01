@@ -52,17 +52,14 @@ const MEETING_LEAD_MS = 60 * 1000;
 const MEETING_GIVE_UP_MS = 3 * 60 * 1000;
 const MEETING_PULSE_HZ = [0.5, 2];
 
-// On a call: the keyboard's top row and the mouse pulse slowly, green while a
-// camera is on (like the Mac's camera dot), otherwise blue while a mic is on.
-const CAMERA_COLOR = [0, 255, 40];
-const MIC_COLOR = [0, 80, 255];
+// On a call (a camera or mic on): the keyboard's top row and the mouse pulse slowly in deep purple.
+const ON_AIR_COLOR = [90, 8, 66];
 const ON_AIR_PERIOD_MS = 4000;
 
-// Someone talking on a call: a meter fills the top row from the left with their
-// loudness, over the pulse, white for you and magenta for them. The loudest moment
-// holds its key for a beat. Keyboard only: the mouse shows one colour, so it keeps the pulse.
-const MY_VOICE_COLOR = [255, 255, 255];
-const THEIR_VOICE_COLOR = [239, 0, 142];
+// Someone talking on a call, you or them: a magenta meter fills the top row from
+// the left with their loudness, over the pulse. The loudest moment holds its key
+// for a beat. Keyboard only: the mouse shows one colour, so it keeps the pulse.
+const VOICE_COLOR = [239, 0, 142];
 
 // When the top row changes what it shows (a call starts or ends, the countdown
 // gives way), it crossfades over this long.
@@ -133,7 +130,7 @@ export class DeskLights {
     this.attentionStartedAt = null;
     this.meetings = []; // start times (ms) of nearby meetings
     this.joinedMeetings = new Set(); // starts whose countdown a mic or camera ended
-    this.onAir = null; // 'camera', 'mic' or null
+    this.onAir = false; // a camera or mic is on
     this.recording = false; // another app is recording from a mic, and the Mac is not away
     this.topRowKind = null; // what the top row shows: 'meeting', 'onAir' or null
     this.topRowShown = null; // the top-row layer last painted
@@ -164,7 +161,7 @@ export class DeskLights {
         this.joinedMeetings.delete(start);
       }
     });
-    this.onAir = macState.camera ? 'camera' : macState.mic ? 'mic' : null;
+    this.onAir = macState.camera || macState.mic;
     this.recording = macState.mic && !macState.away;
     this.followVoices();
     if (this.onAir) {
@@ -447,15 +444,13 @@ export class DeskLights {
         whole: color => mix(color, MEETING_COLOR, meeting.overall),
       };
     }
-    const onAirColor = this.onAir === 'camera' ? CAMERA_COLOR : MIC_COLOR;
     const pulse = 0.35 + 0.65 * (0.5 - 0.5 * Math.cos(2 * Math.PI * now / ON_AIR_PERIOD_MS));
-    const onAir = color => mix(color, onAirColor, pulse);
+    const onAir = color => mix(color, ON_AIR_COLOR, pulse);
     if (!voice) {
       return { at: onAir, whole: onAir };
     }
-    const voiceColor = mix(MY_VOICE_COLOR, THEIR_VOICE_COLOR, voice.share);
     return {
-      at: (color, col, cols) => mix(onAir(color), voiceColor, voiceMeter(voice, col, cols)),
+      at: (color, col, cols) => mix(onAir(color), VOICE_COLOR, voiceMeter(voice, col, cols)),
       whole: onAir,
     };
   }

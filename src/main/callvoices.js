@@ -3,18 +3,13 @@ import { systemPreferences } from 'electron';
 // Loudness shown as an empty bar at the first and a full one at the second, in dBFS.
 const QUIET_DB = -50;
 const LOUD_DB = -10;
-// Below this share of the bar, a side counts as silent.
+// Below this share of the bar, nobody is talking.
 const TALKING = 0.12;
 // The bar jumps up at once and falls back over roughly this long, like a VU meter.
 const FALL_MS = 180;
-// Your mic hears them through the speakers, so you only show once they have
-// been quiet this long; on a headset they are never in your mic anyway.
-const ECHO_MS = 250;
 // The loudest moment holds its key this long, then falls a full bar per second.
 const PEAK_HOLD_MS = 600;
 const PEAK_DROP_MS = 1000;
-// How long the bar takes to change colour when the talker changes.
-const SWITCH_MS = 120;
 // How often to check whether the call moved to another mic or app.
 const FOLLOW_MS = 5000;
 
@@ -36,10 +31,8 @@ export class CallVoices {
     this.followedAt = 0;
     this.mine = 0;
     this.theirs = 0;
-    this.theirsHeardAt = -Infinity;
     this.peak = 0;
     this.peakAt = 0;
-    this.share = 0; // how much of the bar is their colour, 0 (you) to 1 (them)
     this.readAt = 0;
   }
 
@@ -76,7 +69,7 @@ export class CallVoices {
     this.followedAt = now;
   }
 
-  // The meter right now: { level, peak, share of it in their colour }, each 0..1, or null when nobody talks.
+  // The meter right now, whoever is louder: { level, peak }, each 0..1, or null when nobody talks.
   read(now) {
     if (!this.listening) {
       return null;
@@ -91,11 +84,7 @@ export class CallVoices {
     this.mine = Math.max(toLevel(levels.mine), this.mine * fall);
     this.theirs = Math.max(toLevel(levels.theirs), this.theirs * fall);
 
-    if (this.theirs >= TALKING) {
-      this.theirsHeardAt = now;
-    }
-    const mine = now - this.theirsHeardAt >= ECHO_MS ? this.mine : 0;
-    const level = Math.max(mine, this.theirs);
+    const level = Math.max(this.mine, this.theirs);
     if (level >= this.peak) {
       this.peak = level;
       this.peakAt = now;
@@ -105,8 +94,6 @@ export class CallVoices {
     if (this.peak < TALKING / 2) {
       return null;
     }
-    const target = this.theirs >= mine ? 1 : 0;
-    this.share += (target - this.share) * (1 - Math.exp(-elapsed / SWITCH_MS));
-    return { level, peak: this.peak, share: this.share };
+    return { level, peak: this.peak };
   }
 }

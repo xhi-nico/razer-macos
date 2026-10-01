@@ -31,21 +31,19 @@ When more than one applies, the higher row wins. Day turns to night over the hal
 sunset, and back over the half hour after sunrise. Sunset is worked out from the Mac's time
 zone (its city in the system's `zone.tab`), so it needs no location permission.
 
-**On a call.** The keyboard's top row and the mouse pulse slowly: green while any camera is on
-(like the Mac's camera dot), otherwise blue while any microphone is recording, dictation
-included. The rest of the desk keeps its look, and locking clears it. Whenever the top row
-changes what it shows, it crossfades over half a second.
+**On a call.** The keyboard's top row and the mouse pulse slowly in deep purple while any
+camera is on or any microphone is recording, dictation included. The rest of the desk keeps its
+look, and locking clears it. Whenever the top row changes what it shows, it crossfades over half
+a second. Unlocking sweeps white in from the left; touching anything after idling wakes the desk
+in a quarter second. Plugging in a device gives it the current look within a second or two.
 
-**Who is talking.** While another app records, a meter fills the top row from the left with
-the loudness of whoever is talking, live: white for you, magenta for them. The loudest moment
-holds its key for a beat before falling. The meter is on the keyboard only; the mouse keeps the
-call pulse. You is the mic the
-call app records from, so the bar moves even while you are muted in the call. Them is whatever
-the call app plays (macOS 14.2 or later). They win when both talk, so their voice coming out of
-your speakers never shows as you. Only loudness is measured; nothing is recorded. macOS asks
-once for the microphone and once for system audio recording; without either, that side stays dark.
-Unlocking sweeps white in from the left; touching anything after idling wakes the desk in a
-quarter second. Plugging in a device gives it the current look within a second or two.
+**Who is talking.** While another app records, a magenta meter fills the top row from the left
+with the loudness of whoever is talking, you or them, live. The loudest moment holds its key for
+a beat before falling. The meter is on the keyboard only; the mouse keeps the call pulse. You is
+the mic the call app records from, so the meter moves even while you are muted in the call. Them
+is whatever the call app plays (macOS 14.2 or later). Only loudness is measured; nothing is
+recorded. macOS asks once for the microphone and once for system audio recording; without
+either, that side stays dark.
 
 **Meeting countdown.** A minute before a meeting, the keyboard's top row fills amber from left
 to right, and the mouse warms amber with it. Once the meeting has started both pulse, faster and faster, until a camera or

@@ -29,11 +29,9 @@ version number.
 - Warm white after sunset (from the time zone's coordinates), shifting over half an hour.
 - An attention wave (an orange band across every device and back, three times) on `POST
   127.0.0.1:47820/attention`, for Claude Code's Stop and Notification hooks.
-- Call lights on the keyboard's top row: a slow green pulse while a camera is on, blue while a
-  mic is.
-- A live voice meter over the call lights: it fills the top row from the left with whoever is
-  talking, white for you (your mic) and magenta for them (what the call app plays), with a
-  held peak.
+- Call lights on the keyboard's top row: a slow deep purple pulse while a camera or mic is on.
+- A live magenta voice meter over the call lights: it fills the top row from the left with
+  whoever is talking (your mic, or what the call app plays), with a held peak.
 - The mouse mirrors the top row's call pulse and meeting countdown, and the top row
   crossfades between them. The attention wave now shows over the top row too.
 - A meeting countdown on the keyboard's top row, from the Mac's Calendar: it fills over the
