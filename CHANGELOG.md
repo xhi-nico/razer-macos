@@ -30,13 +30,14 @@ version number.
 - An attention wave (an orange band across every device and back) on `POST
   127.0.0.1:47820/attention`, for Claude Code's Stop and Notification hooks.
 - A meeting countdown on the keyboard's top row, from the Mac's Calendar: it fills over the
-  last minute, then pulses faster until a mic turns on.
+  last minute, then pulses faster until a mic turns on, for up to 3 minutes.
 - `librazermacos`: `razer_set_skip_responses`, so lighting frames are sent without waiting
   for each device's reply (55ms to 6ms per frame across a keyboard, mouse and mat).
 
 ### Removed
 
 - The State manager and its per-trigger saved states, replaced by Auto lights.
+- The battery readout next to the menu bar icon. The mouse's menu entry still shows its charge.
 
 ### Changed
 

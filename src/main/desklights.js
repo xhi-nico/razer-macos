@@ -41,8 +41,7 @@ const ATTENTION_WIDTH = 0.3;
 // pulses faster and faster until a mic turns on (you joined) or it gives up.
 const MEETING_COLOR = [255, 140, 0];
 const MEETING_LEAD_MS = 60 * 1000;
-const MEETING_GIVE_UP_MS = 5 * 60 * 1000;
-const MEETING_PULSE_RAMP_MS = 3 * 60 * 1000;
+const MEETING_GIVE_UP_MS = 3 * 60 * 1000;
 const MEETING_PULSE_HZ = [0.5, 2];
 
 // Pause between frames: short for moving effects, longer for slow ones so an
@@ -325,10 +324,10 @@ export class DeskLights {
       const filled = (now - (start - MEETING_LEAD_MS)) / MEETING_LEAD_MS;
       return (col, cols) => clamp01(filled * cols - col);
     }
-    // Late: pulse, speeding up from the first to the second rate over the ramp.
-    const t = Math.min(now - start, MEETING_PULSE_RAMP_MS) / 1000;
+    // Late: pulse, speeding up from the first to the second rate until it gives up.
+    const t = Math.min(now - start, MEETING_GIVE_UP_MS) / 1000;
     const [slowHz, fastHz] = MEETING_PULSE_HZ;
-    const phase = 2 * Math.PI * (slowHz * t + (fastHz - slowHz) * t * t / (2 * MEETING_PULSE_RAMP_MS / 1000));
+    const phase = 2 * Math.PI * (slowHz * t + (fastHz - slowHz) * t * t / (2 * MEETING_GIVE_UP_MS / 1000));
     const level = 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(phase));
     return () => level;
   }

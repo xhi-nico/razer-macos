@@ -3,10 +3,10 @@ import http from 'http';
 
 const POLL_MS = 1000;
 const IDLE_AFTER_SECONDS = 300;
-// Meetings that started up to 5 minutes ago or start in the next 2, re-read
+// Meetings that started up to 3 minutes ago or start in the next 2, re-read
 // every 15 seconds; the countdown needs one at least a minute ahead.
 const CALENDAR_POLL_MS = 15 * 1000;
-const MEETINGS_BEHIND_MS = 5 * 60 * 1000;
+const MEETINGS_BEHIND_MS = 3 * 60 * 1000;
 const MEETINGS_AHEAD_MS = 2 * 60 * 1000;
 // Claude Code's Stop and Notification hooks post here; see README.
 export const ATTENTION_PORT = 47820;

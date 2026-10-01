@@ -12,7 +12,7 @@
 - **Custom color picking** Choose your own colors for static, reactive and starlight effects
 - **Persistent color settings** Color effects are saved to onboard memory
 - **Battery indicator** The Mouse Dock is lit red to green by the attached mouse's charge, and
-  the charge is shown in the menu bar with a lightning bolt while charging
+  the mouse's menu entry shows its charge, with a lightning bolt while charging
 - **Works on the latest macOS** Including Intel and Apple Silicon. There are no current plans from Razer to support macOS ([source](https://mysupport.razer.com/app/answers/detail/a_id/1381/kw/macOS))
 
 ## Auto lights
@@ -34,7 +34,7 @@ quarter second. Plugging in a device gives it the current look within a second o
 
 **Meeting countdown.** A minute before a meeting, the keyboard's top row fills amber from left
 to right. Once the meeting has started it pulses, faster and faster, until a microphone turns
-on (you joined) or five minutes pass. A meeting is a timed event in the Mac's Calendar app
+on (you joined) or three minutes pass. A meeting is a timed event in the Mac's Calendar app
 with other attendees that you have not declined. macOS asks once for Calendar access; the
 development build (`yarn dev`) cannot ask, so the countdown only runs in the packaged app.
 
@@ -68,8 +68,7 @@ reminder), add to `~/.claude/settings.json`, then restart Claude Code:
 ## About this fork
 
 This is a maintained fork of [1kc/razer-macos](https://github.com/1kc/razer-macos), which has had
-no commits since September 2022. It adds a Mouse Dock battery indicator, a menu bar battery
-readout, and a build that works on current Node and Electron. See [CHANGELOG.md](CHANGELOG.md)
+no commits since September 2022. It adds a Mouse Dock battery indicator, Auto lights, and a build that works on current Node and Electron. See [CHANGELOG.md](CHANGELOG.md)
 for the full list, including why version `0.5.0` is skipped.
 
 ## Download

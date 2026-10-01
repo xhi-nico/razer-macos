@@ -2,7 +2,6 @@ import { RazerApplication } from './razerapplication';
 import { app, dialog, BrowserWindow, ipcMain, Menu, nativeImage, nativeTheme, Tray, powerMonitor } from 'electron';
 import path from 'path';
 import { getMenuFor } from './menu/menubuilder';
-import { FeatureIdentifier } from './feature/featureidentifier';
 import { MacSignals } from './macsignals';
 import addon from '../driver';
 import { clearBatteryMode } from './menu/menubuilderdevice';
@@ -11,10 +10,6 @@ import { clearBatteryMode } from './menu/menubuilderdevice';
 import trayIconPath from '../../static/assets/iconTemplate.png?asset';
 
 const version = require('../../package.json').version;
-
-// Menu bar battery readout. Each tick makes synchronous native USB calls, so
-// keep it slow: a mouse battery moves over hours.
-const TRAY_BATTERY_POLL_MS = 30000;
 
 // Wait for USB to settle after a plug event before re-reading the device list.
 const DEVICE_SETTLE_MS = 800;
@@ -186,11 +181,6 @@ export class Application {
     trayIcon.setTemplateImage(true);
     this.tray = new Tray(trayIcon);
     this.tray.setToolTip('Razer macOS menu');
-    this.updateTrayBattery();
-    if (this.trayBatteryInterval) {
-      clearInterval(this.trayBatteryInterval);
-    }
-    this.trayBatteryInterval = setInterval(() => this.updateTrayBattery(), TRAY_BATTERY_POLL_MS);
     this.tray.on('click', () => {
       if(this.razerApplication.deviceManager.activeRazerDevices != null) {
         this.razerApplication.deviceManager.activeRazerDevices.forEach(device => {
@@ -228,35 +218,11 @@ export class Application {
     this.refreshTray();
   }
 
-  updateTrayBattery() {
-    const devices = this.razerApplication.deviceManager.activeRazerDevices;
-    if (devices == null) {
-      return;
-    }
-    // Only devices that actually report a battery. Refreshing the others would
-    // make native USB calls for nothing.
-    const device = devices.find(
-      activeDevice => activeDevice !== null && activeDevice.hasFeature(FeatureIdentifier.BATTERY),
-    );
-    if (!device) {
-      return;
-    }
-    device.refresh();
-    const batteryLevel = device.batteryLevel;
-    if (!batteryLevel || batteryLevel === -1) {
-      return;
-    }
-    this.tray.setTitle(`  ${device.chargingStatus ? '⚡' : '🔋'}${batteryLevel}%`);
-  }
-
   refreshTray(withDeviceRefresh, force = false) {
     const refresh = withDeviceRefresh ? this.razerApplication.refresh(force) : Promise.resolve(true);
     return refresh.then(() => {
       const contextMenu = Menu.buildFromTemplate(getMenuFor(this));
       this.tray.setContextMenu(contextMenu);
-      // Devices have just been enumerated, so the readout can be filled in now
-      // rather than waiting for the next poll.
-      this.updateTrayBattery();
     });
   }
 
