@@ -37,9 +37,9 @@ included. The rest of the desk keeps its look, and locking clears it. Whenever t
 changes what it shows, it crossfades over half a second.
 
 **Who is talking.** While another app records, a meter fills the top row from the left with
-the loudness of whoever is talking, live. White for you; for them, pink that runs from violet on
-the quiet left to hot pink on the loud right. The loudest moment holds its key for a beat before
-falling, and the mouse shows the meter's tip. You is the mic the
+the loudness of whoever is talking, live: white for you, magenta for them. The loudest moment
+holds its key for a beat before falling. The meter is on the keyboard only; the mouse keeps the
+call pulse. You is the mic the
 call app records from, so the bar moves even while you are muted in the call. Them is whatever
 the call app plays (macOS 14.2 or later). They win when both talk, so their voice coming out of
 your speakers never shows as you. Only loudness is measured; nothing is recorded. macOS asks

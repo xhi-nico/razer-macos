@@ -59,11 +59,10 @@ const MIC_COLOR = [0, 80, 255];
 const ON_AIR_PERIOD_MS = 4000;
 
 // Someone talking on a call: a meter fills the top row from the left with their
-// loudness, over the pulse. White for you; for them, pink running from violet on
-// the quiet left to hot pink on the loud right. The loudest moment holds its key
-// for a beat. The mouse shows the meter's tip.
+// loudness, over the pulse, white for you and magenta for them. The loudest moment
+// holds its key for a beat. Keyboard only: the mouse shows one colour, so it keeps the pulse.
 const MY_VOICE_COLOR = [255, 255, 255];
-const THEIR_VOICE_HUES = [295, 348];
+const THEIR_VOICE_COLOR = [239, 0, 142];
 
 // When the top row changes what it shows (a call starts or ends, the countdown
 // gives way), it crossfades over this long.
@@ -92,17 +91,6 @@ const mix = (from, to, amount) => from.map((channel, i) => channel + (to[i] - ch
 const clamp01 = value => Math.min(1, Math.max(0, value));
 const easeInOut = t => 0.5 - Math.cos(Math.PI * t) / 2;
 const toRgb = color => color.map(Math.round);
-
-// A fully saturated colour of the given hue, in degrees.
-const hue = degrees =>
-  [0, 8, 4].map(n => {
-    const k = (n + degrees / 30) % 12;
-    return 255 * (0.5 - 0.5 * Math.max(-1, Math.min(k - 3, 9 - k, 1)));
-  });
-
-// The voice meter's colour at a point along it (0 quiet, 1 loud), for `share` of them.
-const voiceColor = (t, share) =>
-  mix(MY_VOICE_COLOR, hue(THEIR_VOICE_HUES[0] + (THEIR_VOICE_HUES[1] - THEIR_VOICE_HUES[0]) * t), share);
 
 // How much of each top-row key the voice meter lights: the bar filled from the
 // left, plus the key its recent peak holds.
@@ -465,9 +453,10 @@ export class DeskLights {
     if (!voice) {
       return { at: onAir, whole: onAir };
     }
+    const voiceColor = mix(MY_VOICE_COLOR, THEIR_VOICE_COLOR, voice.share);
     return {
-      at: (color, col, cols) => mix(onAir(color), voiceColor((col + 0.5) / cols, voice.share), voiceMeter(voice, col, cols)),
-      whole: color => mix(onAir(color), voiceColor(voice.level, voice.share), Math.sqrt(voice.level)),
+      at: (color, col, cols) => mix(onAir(color), voiceColor, voiceMeter(voice, col, cols)),
+      whole: onAir,
     };
   }
 

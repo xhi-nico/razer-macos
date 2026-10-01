@@ -32,9 +32,9 @@ version number.
 - Call lights on the keyboard's top row: a slow green pulse while a camera is on, blue while a
   mic is.
 - A live voice meter over the call lights: it fills the top row from the left with whoever is
-  talking, white for you (your mic) and, for them (what the call app plays), pink shading from
-  violet when quiet to hot pink when loud, with a held peak.
-- The mouse mirrors the top row (call pulse, voice meter tip, meeting countdown), and the top row
+  talking, white for you (your mic) and magenta for them (what the call app plays), with a
+  held peak.
+- The mouse mirrors the top row's call pulse and meeting countdown, and the top row
   crossfades between them. The attention wave now shows over the top row too.
 - A meeting countdown on the keyboard's top row, from the Mac's Calendar: it fills over the
   last minute, then pulses faster until a camera or mic turns on, for up to 3 minutes.
