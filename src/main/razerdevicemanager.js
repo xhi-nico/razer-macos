@@ -167,6 +167,11 @@ export class RazerDeviceManager {
     });
   }
 
+  // Names for every known product ID, including devices that are not attached.
+  getDeviceNames() {
+    return Object.fromEntries(this.razerConfigDevices.map(d => [d.productId, d.name]));
+  }
+
   getByInternalId(internalId) {
     return this.activeRazerDevices.find(device => device.internalId === internalId);
   }

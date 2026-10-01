@@ -280,3 +280,11 @@ ol {
 .state-selector > div:last-child {
   flex:1;
 }
+.view-error {
+  padding: 10px;
+}
+
+.view-error pre {
+  white-space: pre-wrap;
+  color: gray;
+}

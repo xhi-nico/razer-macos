@@ -49,9 +49,11 @@ function getMainMenu(application) {
     {
       label: 'State manager',
       click() {
+        const { stateManager, deviceManager } = application.razerApplication;
         application.showView({
           mode: 'state',
-          state: application.razerApplication.stateManager.serialize(),
+          state: stateManager.serialize(),
+          deviceNames: deviceManager.getDeviceNames(),
         });
       },
     },

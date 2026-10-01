@@ -6,6 +6,36 @@ import { ViewColorSettings } from './views/viewcolorpicker';
 import { ViewStateSettings } from './views/viewstatesettings';
 
 /**
+ * Without this, one render error unmounts the whole tree and the window stays
+ * blank until the app restarts. It sits inside the keyed view, so the next
+ * render-view starts it fresh.
+ */
+class ViewErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, info) {
+    console.error(error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.error) {
+      return <div className='view-error'>
+        <p>This window hit an error. Open it again from the menu bar.</p>
+        <pre>{String(this.state.error.message ?? this.state.error)}</pre>
+      </div>;
+    }
+    return this.props.children;
+  }
+}
+
+/**
  * Root React component
  */
 export class App extends React.Component {
@@ -37,13 +67,16 @@ export class App extends React.Component {
   }
 
   render() {
-    const key = this.state.renderKey;
+    return <ViewErrorBoundary key={this.state.renderKey}>{this.renderView()}</ViewErrorBoundary>;
+  }
+
+  renderView() {
     if(this.state.mode === 'device') {
-      return <ViewDeviceSettings key={key} config={this.state.message}></ViewDeviceSettings>;
+      return <ViewDeviceSettings config={this.state.message}></ViewDeviceSettings>;
     } else if(this.state.mode == 'color') {
-      return <ViewColorSettings key={key} config={this.state.message}></ViewColorSettings>;
+      return <ViewColorSettings config={this.state.message}></ViewColorSettings>;
     } else if(this.state.mode == 'state') {
-      return <ViewStateSettings key={key} config={this.state.message}></ViewStateSettings>;
+      return <ViewStateSettings config={this.state.message}></ViewStateSettings>;
     }
     return <div></div>;
   }

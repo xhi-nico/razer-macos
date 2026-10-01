@@ -9,12 +9,11 @@ export class ViewStateSettings extends React.Component {
   constructor(props) {
     super(props);
     this.stateManager = this.props.config.state;
+    this.deviceNames = this.props.config.deviceNames || {};
     const options = this.stateManager.savedStates.map(state => {
       return { value: state.name, label: state.name };
     });
     const optionsWithNull = this.getOptionsWithNull(options);
-
-    console.log(this.stateManager)
 
     this.state = {
       selection: null,
@@ -50,9 +49,9 @@ export class ViewStateSettings extends React.Component {
     });
   }
 
-  getDeviceStateFor(device, state) {
-    return (<div key={device.productId} className='state-device'>
-      <div className='state-device-title'>{device.name}</div>
+  getDeviceStateFor(productId, name, state) {
+    return (<div key={productId} className='state-device'>
+      <div className='state-device-title'>{name}</div>
       <div className='state-device-body'>{this.getPropertiesToKeyValues(state)}</div>
     </div>);
   }
@@ -106,8 +105,11 @@ export class ViewStateSettings extends React.Component {
       return null;
     }
     return stateToRender.states.map(stateObj => {
+      // Saved states keep every device that was attached when they were made,
+      // so some of them may be unplugged now.
       const device = this.stateManager.devices.find(device => device.productId == stateObj.deviceId);
-      return this.getDeviceStateFor(device, stateObj.state);
+      const name = device ? device.name : (this.deviceNames[stateObj.deviceId] ?? 'Unknown device') + ' (not connected)';
+      return this.getDeviceStateFor(stateObj.deviceId, name, stateObj.state);
     });
   }
 
@@ -322,7 +324,7 @@ export class ViewStateSettings extends React.Component {
         </TabPanel>
         <TabPanel>
           <div className={'state-devices'}>
-            {this.stateManager.devices.map(device => this.getDeviceStateFor(device, device.state))}
+            {this.stateManager.devices.map(device => this.getDeviceStateFor(device.productId, device.name, device.state))}
           </div>
         </TabPanel>
       </Tabs>

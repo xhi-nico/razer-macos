@@ -41,6 +41,9 @@ version number.
 
 - Mouse matrix brightness was scaled from 0-100 to 0-255 twice, so settings above about 40%
   wrapped around to dim values. Fixed in librazermacos.
+- The state manager went blank when a saved state included a device that is not attached.
+  Those devices now show by name, marked "not connected". Any view that hits a render error
+  now shows the error instead of a blank window, and recovers on the next menu click.
 - Tray icon rendering solid black instead of inverting for the menu bar. macOS only infers a
   template image when the filename ends in `Template`, and the bundler content-hashes asset
   filenames, which broke that convention. The template flag is now set explicitly via
