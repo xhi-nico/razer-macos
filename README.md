@@ -23,7 +23,9 @@ for the full list, including why version `0.5.0` is skipped.
 
 ## Download
 
-[Latest release](https://github.com/uefigs139/razer-macos/releases)
+This copy ([xhi-nico/razer-macos](https://github.com/xhi-nico/razer-macos)) tracks
+[slicke/razer-macos](https://github.com/slicke/razer-macos) and adds the Pro Click V2 Vertical
+Edition. It has no published release; build it from source as below.
 
 ## Installation instructions
 
@@ -107,6 +109,7 @@ Mice:
 - Razer Basilisk Ultimate
 - Razer Basilisk V2
 - Razer Basilisk V3
+- Razer Basilisk V3 Pro (wired and wireless)
 - Razer DeathAdder 3 5G
 - Razer DeathAdder 1800
 - Razer DeathAdder 2013 (under older mouse effects)
@@ -142,6 +145,7 @@ Mice:
 - Razer Orochi 2013
 - Razer Orochi Chroma
 - Razer Ouroboros
+- Razer Pro Click V2 Vertical Edition (wired and wireless)
 - Razer Taipan
 - Razer Viper
 - Razer Viper 8KHz

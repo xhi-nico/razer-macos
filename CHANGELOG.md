@@ -39,6 +39,8 @@ version number.
 
 ### Fixed
 
+- Mouse matrix brightness was scaled from 0-100 to 0-255 twice, so settings above about 40%
+  wrapped around to dim values. Fixed in librazermacos.
 - Tray icon rendering solid black instead of inverting for the menu bar. macOS only infers a
   template image when the filename ends in `Template`, and the bundler content-hashes asset
   filenames, which broke that convention. The template flag is now set explicitly via
@@ -54,6 +56,12 @@ version number.
 
 ### Added
 
+- Razer Pro Click V2 Vertical Edition, wired (`0x00C7`) and wireless (`0x00C8`): static,
+  wave, spectrum and off lighting, brightness, DPI up to 30000, 125/250/500/1000 Hz polling,
+  and battery. Device settings follow openrazer, except brightness, which this mouse only
+  accepts on the underglow zone. Only the wired connection has been tested.
+- Razer Basilisk V3 Pro, wired (`0x00AA`) and wireless (`0x00AB`). librazermacos already
+  supported it; the app had no device file. Untested on hardware.
 - Menu bar battery readout: the charge of the attached mouse is shown next to the tray icon,
   with a lightning bolt while charging. Only devices that actually report a battery are polled,
   at 30 second intervals, and the readout is also refreshed whenever devices are re-enumerated
