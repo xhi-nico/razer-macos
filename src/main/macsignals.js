@@ -8,6 +8,8 @@ const IDLE_AFTER_SECONDS = 300;
 const CALENDAR_POLL_MS = 15 * 1000;
 const MEETINGS_BEHIND_MS = 3 * 60 * 1000;
 const MEETINGS_AHEAD_MS = 2 * 60 * 1000;
+// Reading the mic takes ~17ms, so it is read every other poll.
+const MIC_POLL_MS = 2 * 1000;
 // Claude Code's Stop and Notification hooks post here; see README.
 export const ATTENTION_PORT = 47820;
 
@@ -18,8 +20,7 @@ export const ATTENTION_PORT = 47820;
  * only make it read sooner.
  *
  * Events:
- *   change    { away, camera, idle, mic, meetings }, whenever any of them changes;
- *             mic is only read while a meeting is near, since reading it is slow
+ *   change    { away, camera, idle, mic, meetings }, whenever any of them changes
  *   devices   a Razer device was plugged, unplugged or re-enumerated
  *   sleep     the Mac is about to sleep, log out or shut down; act now
  *   attention something (Claude Code) wants the user
@@ -33,6 +34,8 @@ export class MacSignals extends EventEmitter {
     this.devicesFingerprint = null;
     this.meetings = [];
     this.meetingsReadAt = 0;
+    this.mic = false;
+    this.micReadAt = 0;
   }
 
   start() {
@@ -75,13 +78,17 @@ export class MacSignals extends EventEmitter {
       this.meetings = this.addon.meetingStartsBetween(now - MEETINGS_BEHIND_MS, now + MEETINGS_AHEAD_MS).sort((a, b) => a - b);
       this.meetingsReadAt = now;
     }
+    if (force || now - this.micReadAt >= MIC_POLL_MS) {
+      this.mic = this.addon.isMicInUse();
+      this.micReadAt = now;
+    }
 
     const session = this.addon.getSessionState();
     const state = {
       away: session.locked || !session.onConsole,
       camera: this.addon.isCameraInUse(),
       idle: this.powerMonitor.getSystemIdleTime() >= IDLE_AFTER_SECONDS,
-      mic: this.meetings.length > 0 && this.addon.isMicInUse(),
+      mic: this.mic,
       meetings: this.meetings,
     };
     const previous = this.state;

@@ -31,7 +31,7 @@ function getMainMenu(application) {
       label: 'Auto lights',
       type: 'checkbox',
       checked: application.razerApplication.lights.auto,
-      toolTip: 'White while you work, red when you leave, blue on camera',
+      toolTip: 'White while you work, red when you leave, top row pulses on calls',
       click(menuItem) {
         application.setAutoLights(menuItem.checked);
       },

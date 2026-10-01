@@ -22,15 +22,16 @@ version number.
 ### Added
 
 - **Auto lights**, on by default: every attached device shows one look picked from the Mac's
-  state. White while working, a slow dim breath after 5 minutes without input, blue while a
-  camera is on, red when locked, switched away, asleep, logged out or quit (red is stored in
+  state. White while working, a slow dim breath after 5 minutes without input, red when locked, switched away, asleep, logged out or quit (red is stored in
   the devices, so the login screen shows it). Unlocking sweeps white across the desk. Plugging
   a device in, or waking from sleep, picks up the current look. Picking a colour or effect by
   hand switches Auto off; brightness does not.
 - An attention wave (an orange band across every device and back) on `POST
   127.0.0.1:47820/attention`, for Claude Code's Stop and Notification hooks.
+- Call lights on the keyboard's top row: a slow green pulse while a camera is on, blue while a
+  mic is.
 - A meeting countdown on the keyboard's top row, from the Mac's Calendar: it fills over the
-  last minute, then pulses faster until a mic turns on, for up to 3 minutes.
+  last minute, then pulses faster until a camera or mic turns on, for up to 3 minutes.
 - `librazermacos`: `razer_set_skip_responses`, so lighting frames are sent without waiting
   for each device's reply (55ms to 6ms per frame across a keyboard, mouse and mat).
 

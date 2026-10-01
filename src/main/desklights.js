@@ -11,7 +11,6 @@ const SETTINGS_KEY = 'desklights';
  */
 const LOOKS = [
   { name: 'away', color: [255, 0, 0], store: true, when: state => state.away },
-  { name: 'camera', color: [0, 70, 255], when: state => state.camera },
   { name: 'idle', color: [255, 255, 255], breathe: true, when: state => state.idle },
   { name: 'working', color: [255, 255, 255], store: true, when: () => true },
 ];
@@ -34,7 +33,7 @@ const SWEEP_EDGE = 0.35;
 
 // Claude wants you: an orange band rolls across the desk and back.
 const ATTENTION_COLOR = [255, 90, 20];
-const ATTENTION_MS = 2600;
+const ATTENTION_MS = 4000;
 const ATTENTION_WIDTH = 0.3;
 
 // Next meeting: the keyboard's top row fills amber over the last minute, then
@@ -44,10 +43,16 @@ const MEETING_LEAD_MS = 60 * 1000;
 const MEETING_GIVE_UP_MS = 3 * 60 * 1000;
 const MEETING_PULSE_HZ = [0.5, 2];
 
+// On a call: the keyboard's top row pulses slowly, green while a camera is on
+// (like the Mac's camera dot), otherwise blue while a mic is on.
+const CAMERA_COLOR = [0, 255, 40];
+const MIC_COLOR = [0, 80, 255];
+const ON_AIR_PERIOD_MS = 4000;
+
 // Pause between frames: short for moving effects, longer for slow ones so an
-// idle desk costs little.
+// idle desk or an hour-long call costs little.
 const FRAME_GAP_MS = 30;
-const SLOW_FRAME_GAP_MS = 80;
+const SLOW_FRAME_GAP_MS = 120;
 
 function transitionFor(from, to) {
   if (to === 'working' && from === 'away') {
@@ -75,8 +80,8 @@ function keyboardGrid(device) {
 
 /**
  * Drives every Razer device as one desk. Each frame is painted from layers:
- * the current look (with any fade or sweep into it), then the meeting
- * countdown on the keyboard's top row, then the attention wave. A change that
+ * the current look (with any fade or sweep into it), then the keyboard's top
+ * row (meeting countdown, or camera / mic), then the attention wave. A change that
  * lands mid-animation starts from whatever is showing at that moment, so
  * overlapping Mac events redirect an animation instead of jumping.
  */
@@ -88,7 +93,8 @@ export class DeskLights {
     this.transition = null; // { from: x => colour, startedAt, duration, sweep }
     this.attentionStartedAt = null;
     this.meetings = []; // start times (ms) of nearby meetings
-    this.joinedMeetings = new Set(); // starts whose countdown a mic ended
+    this.joinedMeetings = new Set(); // starts whose countdown a mic or camera ended
+    this.onAir = null; // 'camera', 'mic' or null
     this.written = new Map(); // device -> what it last showed, to skip repeats
     this.holds = 0; // refreshes in flight
     this.timer = null;
@@ -115,7 +121,8 @@ export class DeskLights {
         this.joinedMeetings.delete(start);
       }
     });
-    if (macState.mic) {
+    this.onAir = macState.camera ? 'camera' : macState.mic ? 'mic' : null;
+    if (this.onAir) {
       this.meetings.filter(start => this.inMeetingWindow(start, now)).forEach(start => this.joinedMeetings.add(start));
     }
 
@@ -186,7 +193,7 @@ export class DeskLights {
     }
     const now = Date.now();
     const moving = this.transition != null || this.attentionStartedAt != null;
-    const slow = this.look.breathe || this.activeMeeting(now) != null;
+    const slow = this.look.breathe || this.topRowAt(now) != null;
     this.paint(now, !moving && !slow && this.look.store);
 
     if (moving || slow) {
@@ -206,7 +213,7 @@ export class DeskLights {
   paint(now, store) {
     const base = this.baseAt(now);
     const wave = this.attentionAt(now);
-    const meeting = this.meetingAt(now);
+    const topRow = this.topRowAt(now);
     const colorAt = x => (wave ? mix(base(x), ATTENTION_COLOR, wave(x)) : base(x));
 
     // Frames along the way need not land; only the settled, stored colour must.
@@ -222,7 +229,7 @@ export class DeskLights {
           }
           const columns = Array.from({ length: grid.cols }, (_, col) => {
             const color = colorAt(KEYBOARD_LEFT + KEYBOARD_WIDTH * col / (grid.cols - 1));
-            return [toRgb(color), toRgb(meeting ? mix(color, MEETING_COLOR, meeting(col, grid.cols)) : color)];
+            return [toRgb(color), toRgb(topRow ? mix(color, topRow.color, topRow.level(col, grid.cols)) : color)];
           });
           const rows = Array.from({ length: grid.rows }, (_, row) => columns.map(([plain, topRow]) => (row === 0 ? topRow : plain)));
           const first = rows[0][0].join();
@@ -243,6 +250,10 @@ export class DeskLights {
   }
 
   writeColor(device, rgb, store) {
+    // A stored colour is also showing, so it needs no second, unstored write.
+    if (!store && this.written.get(device.internalId) === `stored ${rgb}`) {
+      return;
+    }
     this.writeIfChanged(device, `${store ? 'stored' : 'shown'} ${rgb}`, () => {
       if (store) {
         device.setModeStatic(rgb);
@@ -252,11 +263,26 @@ export class DeskLights {
     });
   }
 
+  // Rewrites only the rows that changed since the last grid, so a top-row
+  // effect costs one row per frame rather than the whole keyboard.
   writeGrid(device, rows) {
-    this.writeIfChanged(device, `grid ${rows}`, () => {
-      rows.forEach((row, index) => device.setCustomFrame([index, 0, row.length - 1, ...row.flat()]));
+    const previous = this.written.get(device.internalId);
+    const shown = Array.isArray(previous) ? previous : [];
+    const keys = rows.map(String);
+    if (keys.every((key, index) => key === shown[index])) {
+      return;
+    }
+    try {
+      rows.forEach((row, index) => {
+        if (keys[index] !== shown[index]) {
+          device.setCustomFrame([index, 0, row.length - 1, ...row.flat()]);
+        }
+      });
       device.setModeCustom();
-    });
+      this.written.set(device.internalId, keys);
+    } catch (error) {
+      console.warn(`Lights: ${device.name} did not take the frame`, error);
+    }
   }
 
   writeIfChanged(device, content, write) {
@@ -314,9 +340,25 @@ export class DeskLights {
     return x => easeInOut(clamp01(1 - Math.abs(x - center) / ATTENTION_WIDTH));
   }
 
+  // What the keyboard's top row shows over the look: { color, level(col, cols) }, or null.
+  topRowAt(now) {
+    if (this.look.name === 'away') {
+      return null;
+    }
+    const meeting = this.meetingAt(now);
+    if (meeting) {
+      return { color: MEETING_COLOR, level: meeting };
+    }
+    if (this.onAir) {
+      const level = 0.35 + 0.65 * (0.5 - 0.5 * Math.cos(2 * Math.PI * now / ON_AIR_PERIOD_MS));
+      return { color: this.onAir === 'camera' ? CAMERA_COLOR : MIC_COLOR, level: () => level };
+    }
+    return null;
+  }
+
   // How strongly each top-row key shows the countdown, or null when there is none.
   meetingAt(now) {
-    const start = this.activeMeeting(now);
+    const start = this.meetings.find(meeting => this.inMeetingWindow(meeting, now) && !this.joinedMeetings.has(meeting));
     if (start == null) {
       return null;
     }
@@ -330,13 +372,6 @@ export class DeskLights {
     const phase = 2 * Math.PI * (slowHz * t + (fastHz - slowHz) * t * t / (2 * MEETING_GIVE_UP_MS / 1000));
     const level = 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(phase));
     return () => level;
-  }
-
-  activeMeeting(now) {
-    if (this.look.name === 'away') {
-      return null;
-    }
-    return this.meetings.find(start => this.inMeetingWindow(start, now) && !this.joinedMeetings.has(start)) ?? null;
   }
 
   inMeetingWindow(start, now) {

@@ -24,17 +24,20 @@ keyboard on the left, mat underneath, mouse on the right.
 | Your Mac | Look |
 |---|---|
 | Locked, another user switched in, asleep, logged out, app quit | Red, stored in the devices so the login screen keeps it |
-| A camera is on | Blue |
 | No keyboard or mouse input for 5 minutes | A slow, dim white breath |
 | Working | White |
 
-When more than one applies, the higher row wins, so a lock during a call still goes red.
+When more than one applies, the higher row wins.
+
+**On a call.** The keyboard's top row pulses slowly: green while any camera is on (like the
+Mac's camera dot), otherwise blue while any microphone is recording, dictation included. The
+rest of the desk keeps its look, and locking clears it.
 Unlocking sweeps white in from the left; touching anything after idling wakes the desk in a
 quarter second. Plugging in a device gives it the current look within a second or two.
 
 **Meeting countdown.** A minute before a meeting, the keyboard's top row fills amber from left
-to right. Once the meeting has started it pulses, faster and faster, until a microphone turns
-on (you joined) or three minutes pass. A meeting is a timed event in the Mac's Calendar app
+to right. Once the meeting has started it pulses, faster and faster, until a camera or
+microphone turns on (you joined) or three minutes pass. A meeting is a timed event in the Mac's Calendar app
 with other attendees that you have not declined. macOS asks once for Calendar access; the
 development build (`yarn dev`) cannot ask, so the countdown only runs in the packaged app.
 
