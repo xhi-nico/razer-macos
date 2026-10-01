@@ -34,6 +34,13 @@ zone (its city in the system's `zone.tab`), so it needs no location permission.
 **On a call.** The keyboard's top row pulses slowly: green while any camera is on (like the
 Mac's camera dot), otherwise blue while any microphone is recording, dictation included. The
 rest of the desk keeps its look, and locking clears it.
+
+**Who is talking.** While another app records, a bar grows from the middle of the top row with
+the loudness of whoever is talking, live: white for you, pink for them. You is the mic the
+call app records from, so the bar moves even while you are muted in the call. Them is whatever
+the call app plays (macOS 14.2 or later). They win when both talk, so their voice coming out of
+your speakers never shows as you. Only loudness is measured; nothing is recorded. macOS asks
+once for the microphone and once for system audio recording; without either, that side stays dark.
 Unlocking sweeps white in from the left; touching anything after idling wakes the desk in a
 quarter second. Plugging in a device gives it the current look within a second or two.
 

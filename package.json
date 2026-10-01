@@ -78,7 +78,9 @@
       "x64ArchFiles": "**/node_modules/uiohook-napi/prebuilds/**",
       "extendInfo": {
         "NSCalendarsFullAccessUsageDescription": "Auto lights counts down to your next meeting on the keyboard.",
-        "NSCalendarsUsageDescription": "Auto lights counts down to your next meeting on the keyboard."
+        "NSCalendarsUsageDescription": "Auto lights counts down to your next meeting on the keyboard.",
+        "NSMicrophoneUsageDescription": "Auto lights shows how loud you are on a call on the keyboard. Only loudness is measured; nothing is recorded.",
+        "NSAudioCaptureUsageDescription": "Auto lights shows how loud the other side of a call is on the keyboard. Only loudness is measured; nothing is recorded."
       }
     },
     "files": [

@@ -31,6 +31,8 @@ version number.
   127.0.0.1:47820/attention`, for Claude Code's Stop and Notification hooks.
 - Call lights on the keyboard's top row: a slow green pulse while a camera is on, blue while a
   mic is.
+- A live voice bar over the call lights: it grows from the middle of the top row with whoever is
+  talking, white for you (your mic) and pink for them (what the call app plays).
 - A meeting countdown on the keyboard's top row, from the Mac's Calendar: it fills over the
   last minute, then pulses faster until a camera or mic turns on, for up to 3 minutes.
 - `librazermacos`: `razer_set_skip_responses`, so lighting frames are sent without waiting

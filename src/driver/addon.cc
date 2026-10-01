@@ -4,6 +4,7 @@
 
 #include "macsignals.h"
 #include "calendar.h"
+#include "callaudio.h"
 
 extern "C"
 {
@@ -998,6 +999,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("setSkipResponses", Napi::Function::New(env, SetSkipResponses));
     InitMacSignals(env, exports);
     InitCalendar(env, exports);
+    InitCallAudio(env, exports);
 
     return exports;
 }

@@ -8,6 +8,7 @@
 #include <CoreGraphics/CoreGraphics.h>
 
 #include "macsignals.h"
+#include "audioprocesses.h"
 
 extern "C"
 {
@@ -96,43 +97,14 @@ Napi::Boolean IsCameraInUse(const Napi::CallbackInfo &info) {
     return Napi::Boolean::New(env, false);
 }
 
-template <typename T>
-static std::vector<T> readArrayProperty(AudioObjectID object, AudioObjectPropertySelector selector) {
-    AudioObjectPropertyAddress address = {
-        selector, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain
-    };
-    UInt32 dataSize = 0;
-    if (AudioObjectGetPropertyDataSize(object, &address, 0, NULL, &dataSize) != noErr || dataSize == 0) {
-        return {};
-    }
-    std::vector<T> values(dataSize / sizeof(T));
-    if (AudioObjectGetPropertyData(object, &address, 0, NULL, &dataSize, values.data()) != noErr) {
-        return {};
-    }
-    return values;
-}
-
-static bool readFlag(AudioObjectID object, AudioObjectPropertySelector selector) {
-    AudioObjectPropertyAddress address = {
-        selector, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain
-    };
-    UInt32 value = 0;
-    UInt32 size = sizeof(value);
-    return AudioObjectGetPropertyData(object, &address, 0, NULL, &size, &value) == noErr && value;
-}
-
 /**
- * True while any app is recording from a microphone. Asks per app rather than
- * per device, because a headset playing music runs its mic's device too. Like
- * the camera check, this opens nothing, so it needs no microphone permission.
+ * True while any other app is recording from a microphone. Asks per app rather
+ * than per device, because a headset playing music runs its mic's device too.
+ * Leaves this app out, since it records while measuring the call's voices.
+ * Like the camera check, this opens nothing, so it needs no microphone permission.
  */
 Napi::Boolean IsMicInUse(const Napi::CallbackInfo &info) {
-    for (AudioObjectID process : readArrayProperty<AudioObjectID>(kAudioObjectSystemObject, kAudioHardwarePropertyProcessObjectList)) {
-        if (readFlag(process, kAudioProcessPropertyIsRunningInput)) {
-            return Napi::Boolean::New(info.Env(), true);
-        }
-    }
-    return Napi::Boolean::New(info.Env(), false);
+    return Napi::Boolean::New(info.Env(), !otherAppsRecording().empty());
 }
 
 static bool readSessionFlag(CFDictionaryRef session, CFStringRef key, bool fallback) {
