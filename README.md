@@ -31,12 +31,15 @@ When more than one applies, the higher row wins. Day turns to night over the hal
 sunset, and back over the half hour after sunrise. Sunset is worked out from the Mac's time
 zone (its city in the system's `zone.tab`), so it needs no location permission.
 
-**On a call.** The keyboard's top row pulses slowly: green while any camera is on (like the
-Mac's camera dot), otherwise blue while any microphone is recording, dictation included. The
-rest of the desk keeps its look, and locking clears it.
+**On a call.** The keyboard's top row and the mouse pulse slowly: green while any camera is on
+(like the Mac's camera dot), otherwise blue while any microphone is recording, dictation
+included. The rest of the desk keeps its look, and locking clears it. Whenever the top row
+changes what it shows, it crossfades over half a second.
 
-**Who is talking.** While another app records, a bar grows from the middle of the top row with
-the loudness of whoever is talking, live: white for you, pink for them. You is the mic the
+**Who is talking.** While another app records, a meter fills the top row from the left with
+the loudness of whoever is talking, live. White for you; for them, pink that runs from violet on
+the quiet left to hot pink on the loud right. The loudest moment holds its key for a beat before
+falling, and the mouse shows the meter's tip. You is the mic the
 call app records from, so the bar moves even while you are muted in the call. Them is whatever
 the call app plays (macOS 14.2 or later). They win when both talk, so their voice coming out of
 your speakers never shows as you. Only loudness is measured; nothing is recorded. macOS asks
@@ -45,7 +48,7 @@ Unlocking sweeps white in from the left; touching anything after idling wakes th
 quarter second. Plugging in a device gives it the current look within a second or two.
 
 **Meeting countdown.** A minute before a meeting, the keyboard's top row fills amber from left
-to right. Once the meeting has started it pulses, faster and faster, until a camera or
+to right, and the mouse warms amber with it. Once the meeting has started both pulse, faster and faster, until a camera or
 microphone turns on (you joined) or three minutes pass. A meeting is a timed event in the Mac's Calendar app
 with other attendees that you have not declined. macOS asks once for Calendar access; the
 development build (`yarn dev`) cannot ask, so the countdown only runs in the packaged app.

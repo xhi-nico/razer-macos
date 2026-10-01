@@ -44,23 +44,30 @@ const ATTENTION_WAVE_MS = 2600;
 const ATTENTION_WAVES = 3;
 const ATTENTION_WIDTH = 0.3;
 
-// Next meeting: the keyboard's top row fills amber over the last minute, then
-// pulses faster and faster until a mic turns on (you joined) or it gives up.
+// Next meeting: the keyboard's top row fills amber over the last minute (the
+// mouse warms with it), then both pulse faster and faster until a mic turns on
+// (you joined) or it gives up.
 const MEETING_COLOR = [255, 140, 0];
 const MEETING_LEAD_MS = 60 * 1000;
 const MEETING_GIVE_UP_MS = 3 * 60 * 1000;
 const MEETING_PULSE_HZ = [0.5, 2];
 
-// On a call: the keyboard's top row pulses slowly, green while a camera is on
-// (like the Mac's camera dot), otherwise blue while a mic is on.
+// On a call: the keyboard's top row and the mouse pulse slowly, green while a
+// camera is on (like the Mac's camera dot), otherwise blue while a mic is on.
 const CAMERA_COLOR = [0, 255, 40];
 const MIC_COLOR = [0, 80, 255];
 const ON_AIR_PERIOD_MS = 4000;
 
-// Someone talking on a call: a bar grows from the middle of the top row with
-// their loudness, white for you and pink for them, over the pulse.
+// Someone talking on a call: a meter fills the top row from the left with their
+// loudness, over the pulse. White for you; for them, pink running from violet on
+// the quiet left to hot pink on the loud right. The loudest moment holds its key
+// for a beat. The mouse shows the meter's tip.
 const MY_VOICE_COLOR = [255, 255, 255];
-const THEIR_VOICE_COLOR = [255, 0, 160];
+const THEIR_VOICE_HUES = [295, 348];
+
+// When the top row changes what it shows (a call starts or ends, the countdown
+// gives way), it crossfades over this long.
+const TOP_ROW_FADE_MS = 500;
 
 // Pause between frames: short for moving effects, longer for slow ones so an
 // idle desk or an hour-long call costs little.
@@ -85,8 +92,34 @@ const mix = (from, to, amount) => from.map((channel, i) => channel + (to[i] - ch
 const clamp01 = value => Math.min(1, Math.max(0, value));
 const easeInOut = t => 0.5 - Math.cos(Math.PI * t) / 2;
 const toRgb = color => color.map(Math.round);
-// How much of each top-row key a voice bar covers: it grows from the middle out.
-const voiceBar = (level, col, cols) => clamp01(level * cols / 2 - Math.abs(col + 0.5 - cols / 2) + 0.5);
+
+// A fully saturated colour of the given hue, in degrees.
+const hue = degrees =>
+  [0, 8, 4].map(n => {
+    const k = (n + degrees / 30) % 12;
+    return 255 * (0.5 - 0.5 * Math.max(-1, Math.min(k - 3, 9 - k, 1)));
+  });
+
+// The voice meter's colour at a point along it (0 quiet, 1 loud), for `share` of them.
+const voiceColor = (t, share) =>
+  mix(MY_VOICE_COLOR, hue(THEIR_VOICE_HUES[0] + (THEIR_VOICE_HUES[1] - THEIR_VOICE_HUES[0]) * t), share);
+
+// How much of each top-row key the voice meter lights: the bar filled from the
+// left, plus the key its recent peak holds.
+const voiceMeter = ({ level, peak }, col, cols) =>
+  Math.max(clamp01(level * cols - col), col === Math.min(cols - 1, Math.floor(peak * cols)) ? 1 : 0);
+
+// A top-row layer: { at(colour, col, cols), whole(colour) }, each returning the
+// colour over the look; `whole` is the row as one colour, for the mouse.
+// Shows `from` giving way to `to`, either of which may be null (just the look).
+function crossfade(from, to, amount) {
+  const at = (layer, color, col, cols) => (layer ? layer.at(color, col, cols) : color);
+  const whole = (layer, color) => (layer ? layer.whole(color) : color);
+  return {
+    at: (color, col, cols) => mix(at(from, color, col, cols), at(to, color, col, cols), amount),
+    whole: color => mix(whole(from, color), whole(to, color), amount),
+  };
+}
 
 function keyboardGrid(device) {
   const ripple = device.mainType === RazerDeviceType.KEYBOARD && device.getFeature(FeatureIdentifier.RIPPLE);
@@ -96,7 +129,8 @@ function keyboardGrid(device) {
 /**
  * Drives every Razer device as one desk. Each frame is painted from layers:
  * the current look (with any fade or sweep into it), then the keyboard's top
- * row (meeting countdown, or camera / mic with the call's voices), then the attention wave. A change that
+ * row and the mouse (meeting countdown, or camera / mic with the call's voices),
+ * then the attention wave over everything. A change that
  * lands mid-animation starts from whatever is showing at that moment, so
  * overlapping Mac events redirect an animation instead of jumping.
  */
@@ -113,6 +147,9 @@ export class DeskLights {
     this.joinedMeetings = new Set(); // starts whose countdown a mic or camera ended
     this.onAir = null; // 'camera', 'mic' or null
     this.recording = false; // another app is recording from a mic, and the Mac is not away
+    this.topRowKind = null; // what the top row shows: 'meeting', 'onAir' or null
+    this.topRowShown = null; // the top-row layer last painted
+    this.topRowFade = null; // { from: layer, startedAt }
     this.written = new Map(); // device -> what it last showed, to skip repeats
     this.holds = 0; // refreshes in flight
     this.timer = null;
@@ -214,8 +251,9 @@ export class DeskLights {
       return;
     }
     const now = Date.now();
-    const moving = this.transition != null || this.attentionStartedAt != null || this.voices.listening;
-    const slow = this.look.breathe || this.topRowAt(now) != null;
+    this.noticeTopRow(now);
+    const moving = this.transition != null || this.attentionStartedAt != null || this.topRowFade != null || this.voices.listening;
+    const slow = this.look.breathe || this.topRowKind != null;
     this.paint(now, !moving && !slow && this.look.store);
 
     if (moving || slow) {
@@ -240,7 +278,7 @@ export class DeskLights {
     const base = this.baseAt(now);
     const wave = this.attentionAt(now);
     const topRow = this.topRowAt(now, this.voices.read(now));
-    const colorAt = x => (wave ? mix(base(x), ATTENTION_COLOR, wave(x)) : base(x));
+    const waved = (color, x) => (wave ? mix(color, ATTENTION_COLOR, wave(x)) : color);
 
     // Frames along the way need not land; only the settled, stored colour must.
     this.addon.setSkipResponses(!store);
@@ -250,12 +288,15 @@ export class DeskLights {
         .forEach(device => {
           const grid = keyboardGrid(device);
           if (grid == null) {
-            this.writeColor(device, toRgb(colorAt(POSITIONS[device.mainType] ?? OTHER_POSITION)), store);
+            const x = POSITIONS[device.mainType] ?? OTHER_POSITION;
+            const color = topRow && device.mainType === RazerDeviceType.MOUSE ? topRow.whole(base(x)) : base(x);
+            this.writeColor(device, toRgb(waved(color, x)), store);
             return;
           }
           const columns = Array.from({ length: grid.cols }, (_, col) => {
-            const color = colorAt(KEYBOARD_LEFT + KEYBOARD_WIDTH * col / (grid.cols - 1));
-            return [toRgb(color), toRgb(topRow ? topRow(color, col, grid.cols) : color)];
+            const x = KEYBOARD_LEFT + KEYBOARD_WIDTH * col / (grid.cols - 1);
+            const color = base(x);
+            return [toRgb(waved(color, x)), toRgb(waved(topRow ? topRow.at(color, col, grid.cols) : color, x))];
           });
           const rows = Array.from({ length: grid.rows }, (_, row) => columns.map(([plain, topRow]) => (row === 0 ? topRow : plain)));
           const first = rows[0][0].join();
@@ -368,24 +409,65 @@ export class DeskLights {
     return x => easeInOut(clamp01(1 - Math.abs(x - center) / ATTENTION_WIDTH));
   }
 
-  // What the keyboard's top row shows over the look, as (colour, col, cols) => colour, or null.
-  topRowAt(now, voice = null) {
+  // What the top row (and the mouse) should show now: 'meeting', 'onAir' or null.
+  topRowKindAt(now) {
     if (this.look.name === 'away') {
       return null;
     }
-    const meeting = this.meetingAt(now);
-    if (meeting) {
-      return (color, col, cols) => mix(color, MEETING_COLOR, meeting(col, cols));
+    if (this.meetingAt(now)) {
+      return 'meeting';
     }
-    if (!this.onAir) {
+    return this.onAir ? 'onAir' : null;
+  }
+
+  // Starts a crossfade from whatever is showing when the top row changes what it shows.
+  noticeTopRow(now) {
+    const kind = this.topRowKindAt(now);
+    if (kind !== this.topRowKind) {
+      this.topRowKind = kind;
+      this.topRowFade = { from: this.topRowShown, startedAt: now };
+    }
+  }
+
+  // The top-row layer to paint (see crossfade), or null for just the look.
+  topRowAt(now, voice) {
+    if (this.look.name === 'away') {
+      // Straight to the stored red, with nothing over it.
+      this.topRowFade = null;
+      this.topRowShown = null;
       return null;
+    }
+    let layer = this.topRowKind && this.topRowLayer(this.topRowKind, now, voice);
+    const fade = this.topRowFade;
+    if (fade) {
+      const progress = (now - fade.startedAt) / TOP_ROW_FADE_MS;
+      if (progress >= 1) {
+        this.topRowFade = null;
+      } else {
+        layer = crossfade(fade.from, layer, easeInOut(progress));
+      }
+    }
+    this.topRowShown = layer;
+    return layer;
+  }
+
+  topRowLayer(kind, now, voice) {
+    if (kind === 'meeting') {
+      const meeting = this.meetingAt(now);
+      return {
+        at: (color, col, cols) => mix(color, MEETING_COLOR, meeting.level(col, cols)),
+        whole: color => mix(color, MEETING_COLOR, meeting.overall),
+      };
     }
     const onAirColor = this.onAir === 'camera' ? CAMERA_COLOR : MIC_COLOR;
     const pulse = 0.35 + 0.65 * (0.5 - 0.5 * Math.cos(2 * Math.PI * now / ON_AIR_PERIOD_MS));
-    const voiceColor = voice && mix(MY_VOICE_COLOR, THEIR_VOICE_COLOR, voice.share);
-    return (color, col, cols) => {
-      const onAir = mix(color, onAirColor, pulse);
-      return voice ? mix(onAir, voiceColor, voiceBar(voice.level, col, cols)) : onAir;
+    const onAir = color => mix(color, onAirColor, pulse);
+    if (!voice) {
+      return { at: onAir, whole: onAir };
+    }
+    return {
+      at: (color, col, cols) => mix(onAir(color), voiceColor((col + 0.5) / cols, voice.share), voiceMeter(voice, col, cols)),
+      whole: color => mix(onAir(color), voiceColor(voice.level, voice.share), Math.sqrt(voice.level)),
     };
   }
 
@@ -398,7 +480,7 @@ export class DeskLights {
     }
   }
 
-  // How strongly each top-row key shows the countdown, or null when there is none.
+  // The countdown: { level(col, cols) for each top-row key, overall for the mouse }, or null.
   meetingAt(now) {
     const start = this.meetings.find(meeting => this.inMeetingWindow(meeting, now) && !this.joinedMeetings.has(meeting));
     if (start == null) {
@@ -406,14 +488,14 @@ export class DeskLights {
     }
     if (now < start) {
       const filled = (now - (start - MEETING_LEAD_MS)) / MEETING_LEAD_MS;
-      return (col, cols) => clamp01(filled * cols - col);
+      return { level: (col, cols) => clamp01(filled * cols - col), overall: filled };
     }
     // Late: pulse, speeding up from the first to the second rate until it gives up.
     const t = Math.min(now - start, MEETING_GIVE_UP_MS) / 1000;
     const [slowHz, fastHz] = MEETING_PULSE_HZ;
     const phase = 2 * Math.PI * (slowHz * t + (fastHz - slowHz) * t * t / (2 * MEETING_GIVE_UP_MS / 1000));
     const level = 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(phase));
-    return () => level;
+    return { level: () => level, overall: level };
   }
 
   inMeetingWindow(start, now) {
@@ -433,6 +515,7 @@ export class DeskLights {
     this.stopTimer();
     this.transition = null;
     this.attentionStartedAt = null;
+    this.topRowFade = null;
   }
 
   stopTimer() {

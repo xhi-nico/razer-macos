@@ -10,6 +10,9 @@ const FALL_MS = 180;
 // Your mic hears them through the speakers, so you only show once they have
 // been quiet this long; on a headset they are never in your mic anyway.
 const ECHO_MS = 250;
+// The loudest moment holds its key this long, then falls a full bar per second.
+const PEAK_HOLD_MS = 600;
+const PEAK_DROP_MS = 1000;
 // How long the bar takes to change colour when the talker changes.
 const SWITCH_MS = 120;
 // How often to check whether the call moved to another mic or app.
@@ -34,6 +37,8 @@ export class CallVoices {
     this.mine = 0;
     this.theirs = 0;
     this.theirsHeardAt = -Infinity;
+    this.peak = 0;
+    this.peakAt = 0;
     this.share = 0; // how much of the bar is their colour, 0 (you) to 1 (them)
     this.readAt = 0;
   }
@@ -60,6 +65,7 @@ export class CallVoices {
     this.addon.stopCallAudio();
     this.mine = 0;
     this.theirs = 0;
+    this.peak = 0;
   }
 
   follow(now) {
@@ -70,7 +76,7 @@ export class CallVoices {
     this.followedAt = now;
   }
 
-  // The bar right now: { level 0..1, share 0..1 of it in their colour }, or null when nobody talks.
+  // The meter right now: { level, peak, share of it in their colour }, each 0..1, or null when nobody talks.
   read(now) {
     if (!this.listening) {
       return null;
@@ -90,11 +96,17 @@ export class CallVoices {
     }
     const mine = now - this.theirsHeardAt >= ECHO_MS ? this.mine : 0;
     const level = Math.max(mine, this.theirs);
-    if (level < TALKING / 2) {
+    if (level >= this.peak) {
+      this.peak = level;
+      this.peakAt = now;
+    } else if (now - this.peakAt >= PEAK_HOLD_MS) {
+      this.peak = Math.max(level, this.peak - elapsed / PEAK_DROP_MS);
+    }
+    if (this.peak < TALKING / 2) {
       return null;
     }
     const target = this.theirs >= mine ? 1 : 0;
     this.share += (target - this.share) * (1 - Math.exp(-elapsed / SWITCH_MS));
-    return { level, share: this.share };
+    return { level, peak: this.peak, share: this.share };
   }
 }
