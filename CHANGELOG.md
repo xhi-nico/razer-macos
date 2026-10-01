@@ -26,7 +26,8 @@ version number.
   the devices, so the login screen shows it). Unlocking sweeps white across the desk. Plugging
   a device in, or waking from sleep, picks up the current look. Picking a colour or effect by
   hand switches Auto off; brightness does not.
-- An attention wave (an orange band across every device and back) on `POST
+- Warm white after sunset (from the time zone's coordinates), shifting over half an hour.
+- An attention wave (an orange band across every device and back, three times) on `POST
   127.0.0.1:47820/attention`, for Claude Code's Stop and Notification hooks.
 - Call lights on the keyboard's top row: a slow green pulse while a camera is on, blue while a
   mic is.

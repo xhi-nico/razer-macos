@@ -25,9 +25,11 @@ keyboard on the left, mat underneath, mouse on the right.
 |---|---|
 | Locked, another user switched in, asleep, logged out, app quit | Red, stored in the devices so the login screen keeps it |
 | No keyboard or mouse input for 5 minutes | A slow, dim white breath |
-| Working | White |
+| Working | White by day, warm white by night |
 
-When more than one applies, the higher row wins.
+When more than one applies, the higher row wins. Day turns to night over the half hour after
+sunset, and back over the half hour after sunrise. Sunset is worked out from the Mac's time
+zone (its city in the system's `zone.tab`), so it needs no location permission.
 
 **On a call.** The keyboard's top row pulses slowly: green while any camera is on (like the
 Mac's camera dot), otherwise blue while any microphone is recording, dictation included. The
@@ -44,7 +46,7 @@ development build (`yarn dev`) cannot ask, so the countdown only runs in the pac
 Picking a colour or effect from the menu switches Auto lights off; brightness leaves it on.
 
 **Attention wave.** `POST http://127.0.0.1:47820/attention` with the header `X-Desk-Lights: 1`
-rolls an orange band across the desk and back, then hands back. To have Claude Code use it when it is
+rolls an orange band across the desk and back three times, then hands back. To have Claude Code use it when it is
 waiting on you (every finished reply, plus permission prompts and the 60-second idle
 reminder), add to `~/.claude/settings.json`, then restart Claude Code:
 

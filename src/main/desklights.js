@@ -1,5 +1,6 @@
 import { FeatureIdentifier } from './feature/featureidentifier';
 import { RazerDeviceType } from './device/razerdevicetype';
+import { Daylight } from './daylight';
 
 const SETTINGS_KEY = 'desklights';
 
@@ -11,9 +12,14 @@ const SETTINGS_KEY = 'desklights';
  */
 const LOOKS = [
   { name: 'away', color: [255, 0, 0], store: true, when: state => state.away },
-  { name: 'idle', color: [255, 255, 255], breathe: true, when: state => state.idle },
-  { name: 'working', color: [255, 255, 255], store: true, when: () => true },
+  { name: 'idle', color: [255, 255, 255], breathe: true, daylight: true, when: state => state.idle },
+  { name: 'working', color: [255, 255, 255], store: true, daylight: true, when: () => true },
 ];
+
+// After sunset the daylight looks shift to this warm white, and back after sunrise.
+const WARM_WHITE = [255, 170, 90];
+// While that shift is under way, repaint this often.
+const DAYLIGHT_STEP_MS = 60 * 1000;
 
 // Idle: a slow white breath, like a sleeping MacBook's light.
 const BREATH_PERIOD_MS = 7000;
@@ -31,9 +37,10 @@ const OTHER_POSITION = 0.75;
 // The welcome (away to working) sweeps white in from the left; this is the width of its soft edge.
 const SWEEP_EDGE = 0.35;
 
-// Claude wants you: an orange band rolls across the desk and back.
+// Claude wants you: an orange band rolls across the desk and back, three times.
 const ATTENTION_COLOR = [255, 90, 20];
-const ATTENTION_MS = 4000;
+const ATTENTION_WAVE_MS = 2600;
+const ATTENTION_WAVES = 3;
 const ATTENTION_WIDTH = 0.3;
 
 // Next meeting: the keyboard's top row fills amber over the last minute, then
@@ -86,10 +93,11 @@ function keyboardGrid(device) {
  * overlapping Mac events redirect an animation instead of jumping.
  */
 export class DeskLights {
-  constructor(settingsManager, addon, getDevices) {
+  constructor(settingsManager, addon, getDevices, daylight = new Daylight()) {
     this.settingsManager = settingsManager;
     this.addon = addon;
     this.getDevices = getDevices;
+    this.daylight = daylight;
     this.transition = null; // { from: x => colour, startedAt, duration, sweep }
     this.attentionStartedAt = null;
     this.meetings = []; // start times (ms) of nearby meetings
@@ -200,13 +208,17 @@ export class DeskLights {
       this.timer = setTimeout(() => this.render(), moving ? FRAME_GAP_MS : SLOW_FRAME_GAP_MS);
       return;
     }
-    // Nothing moving: sleep until the next meeting's countdown starts.
-    const nextCountdown = Math.min(...this.meetings
-      .filter(start => !this.joinedMeetings.has(start))
-      .map(start => start - MEETING_LEAD_MS)
-      .filter(countdown => countdown > now));
-    if (Number.isFinite(nextCountdown)) {
-      this.timer = setTimeout(() => this.render(), nextCountdown - now);
+    // Nothing moving: sleep until the next meeting's countdown or the next daylight step.
+    const daylightChange = this.look.daylight ? this.daylight.nextChange(now) : Infinity;
+    const wake = Math.min(
+      daylightChange <= now ? now + DAYLIGHT_STEP_MS : daylightChange,
+      ...this.meetings
+        .filter(start => !this.joinedMeetings.has(start))
+        .map(start => start - MEETING_LEAD_MS)
+        .filter(countdown => countdown > now),
+    );
+    if (Number.isFinite(wake)) {
+      this.timer = setTimeout(() => this.render(), wake - now);
     }
   }
 
@@ -298,11 +310,12 @@ export class DeskLights {
   }
 
   lookColor(now) {
+    const color = this.look.daylight ? mix(this.look.color, WARM_WHITE, this.daylight.warmth(now)) : this.look.color;
     if (!this.look.breathe) {
-      return this.look.color;
+      return color;
     }
     const swing = 0.5 + 0.5 * Math.cos(2 * Math.PI * (now - this.lookSince) / BREATH_PERIOD_MS);
-    return mix([0, 0, 0], this.look.color, BREATH_LOW + (BREATH_HIGH - BREATH_LOW) * swing);
+    return mix([0, 0, 0], color, BREATH_LOW + (BREATH_HIGH - BREATH_LOW) * swing);
   }
 
   // The look across the desk, as a colour for each position.
@@ -330,11 +343,12 @@ export class DeskLights {
     if (this.attentionStartedAt == null) {
       return null;
     }
-    const t = (now - this.attentionStartedAt) / ATTENTION_MS;
-    if (t >= 1) {
+    const elapsed = (now - this.attentionStartedAt) / ATTENTION_WAVE_MS;
+    if (elapsed >= ATTENTION_WAVES) {
       this.attentionStartedAt = null;
       return null;
     }
+    const t = elapsed % 1;
     const there = easeInOut(t < 0.5 ? t * 2 : 2 - t * 2);
     const center = -ATTENTION_WIDTH + (1 + 2 * ATTENTION_WIDTH) * there;
     return x => easeInOut(clamp01(1 - Math.abs(x - center) / ATTENTION_WIDTH));
