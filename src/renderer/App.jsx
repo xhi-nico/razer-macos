@@ -3,7 +3,6 @@ import './react-tabs.css';
 import { ipcRenderer } from 'electron';
 import { ViewDeviceSettings } from './views/viewdevicesettings';
 import { ViewColorSettings } from './views/viewcolorpicker';
-import { ViewStateSettings } from './views/viewstatesettings';
 
 /**
  * Without this, one render error unmounts the whole tree and the window stays
@@ -75,8 +74,6 @@ export class App extends React.Component {
       return <ViewDeviceSettings config={this.state.message}></ViewDeviceSettings>;
     } else if(this.state.mode == 'color') {
       return <ViewColorSettings config={this.state.message}></ViewColorSettings>;
-    } else if(this.state.mode == 'state') {
-      return <ViewStateSettings config={this.state.message}></ViewStateSettings>;
     }
     return <div></div>;
   }

@@ -1,6 +1,27 @@
 import { FeatureIdentifier } from '../feature/featureidentifier';
 import { RazerDeviceType } from '../device/razerdevicetype';
 
+// Brightness scales whatever Auto lights shows, so it leaves Auto on.
+const BRIGHTNESS_FEATURES = [FeatureIdentifier.BRIGHTNESS, FeatureIdentifier.MOUSE_BRIGHTNESS];
+
+/**
+ * Picking a colour or effect by hand switches Auto lights off, so the next Mac
+ * event does not paint over it. Ticking Auto lights hands control back.
+ */
+export function takesOverLights(application, menuItem) {
+  if (menuItem.click) {
+    const originalClick = menuItem.click;
+    menuItem.click = (...args) => {
+      application.setAutoLights(false);
+      originalClick(...args);
+    };
+  }
+  if (menuItem.submenu) {
+    menuItem.submenu.forEach(subItem => takesOverLights(application, subItem));
+  }
+  return menuItem;
+}
+
 export function getDeviceMenuFor(application, razerDevice) {
   let deviceMenu = [
     { type: 'separator' },
@@ -8,7 +29,12 @@ export function getDeviceMenuFor(application, razerDevice) {
     { type: 'separator' },
   ];
 
-  const featureMenu = razerDevice.features.map(feature => getFeatureMenuFor(application, razerDevice, feature)).filter(item => item != null);
+  const featureMenu = razerDevice.features
+    .map(feature => {
+      const item = getFeatureMenuFor(application, razerDevice, feature);
+      return item != null && !BRIGHTNESS_FEATURES.includes(feature.featureIdentifier) ? takesOverLights(application, item) : item;
+    })
+    .filter(item => item != null);
   deviceMenu = deviceMenu.concat(featureMenu);
   return deviceMenu;
 }
@@ -97,7 +123,7 @@ function getFeatureMenuFor(application, device, feature) {
 // device handle.
 const BATTERY_POLL_MS = 120000;
 
-function clearBatteryMode(device) {
+export function clearBatteryMode(device) {
   if (device.batteryLevelInterval) {
     clearInterval(device.batteryLevelInterval);
     device.batteryLevelInterval = null;
@@ -173,7 +199,8 @@ function getFeatureBatteryLevel(application, device, feature) {
   };
 
   // Auto-start polling if battery mode was active when the app last ran.
-  if (device.settings && device.settings.batteryModeActive && !device.batteryLevelInterval) {
+  if (device.settings && device.settings.batteryModeActive && !device.batteryLevelInterval
+    && !application.razerApplication.lights.auto) {
     try {
       updateBatteryColor();
     } catch (error) {

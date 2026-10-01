@@ -3,8 +3,8 @@ import { RazerAnimationRipple } from '../animation/animationripple';
 import { RazerAnimationWheel } from '../animation/animationwheel';
 
 export class RazerDeviceKeyboard extends RazerDevice {
-  constructor(addon, settingsManager, stateManager, razerProperties) {
-    super(addon, settingsManager, stateManager, razerProperties);
+  constructor(addon, settingsManager, razerProperties) {
+    super(addon, settingsManager, razerProperties);
     this.rippleAnimation = null;
     this.wheelAnimation = null;
   }
@@ -23,17 +23,6 @@ export class RazerDeviceKeyboard extends RazerDevice {
 
   getSerializeIgnoredProperties() {
     return super.getSerializeIgnoredProperties().concat(['rippleAnimation', 'wheelAnimation']);
-  }
-
-  getState() {
-    const deviceState = super.getState();
-    deviceState['brightness'] = this.brightness;
-    return deviceState;
-  }
-
-  resetToState(state) {
-    super.resetToState(state);
-    this.setBrightness(state.brightness);
   }
 
   destroy() {
@@ -78,17 +67,14 @@ export class RazerDeviceKeyboard extends RazerDevice {
 
   //device specific
   setWaveExtended(directionSpeed) {
-    this.setModeState('waveExtended', directionSpeed);
     this.stopAnimations();
     this.addon.kbdSetModeWave(this.internalId, directionSpeed);
   }
   setReactive(colorMode) {
-    this.setModeState('reactive', colorMode);
     this.stopAnimations();
     this.addon.kbdSetModeReactive(this.internalId, new Uint8Array(colorMode));
   }
   setStarlight(mode) {
-    this.setModeState('starlight', mode);
     this.stopAnimations();
     this.addon.kbdSetModeStarlight(this.internalId, new Uint8Array(mode));
   }
@@ -111,14 +97,12 @@ export class RazerDeviceKeyboard extends RazerDevice {
   }
 
   setRippleEffect(featureConfiguration, color, backgroundColor) {
-    this.setModeState('ripple', [featureConfiguration, color, backgroundColor]);
     this.stopAnimations();
     this.rippleAnimation = new RazerAnimationRipple(this, featureConfiguration, color, backgroundColor);
     this.rippleAnimation.start();
   }
 
   setWheelEffect(featureConfiguration, speed) {
-    this.setModeState('wheel', [featureConfiguration, speed]);
     this.stopAnimations();
     this.wheelAnimation = new RazerAnimationWheel(this, featureConfiguration, speed);
     this.wheelAnimation.start();

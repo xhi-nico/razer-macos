@@ -34,6 +34,15 @@ export class SettingsManager {
     });
   }
 
+  // For writes that must land before the app quits. A missing key reads as {}.
+  setKeySync(key, value) {
+    storage.setSync(key, value);
+  }
+
+  getKeySync(key) {
+    return storage.getSync(key);
+  }
+
   async getKey(key) {
     return new Promise((res, rej) => {
       storage.get(key, (err, data) => {

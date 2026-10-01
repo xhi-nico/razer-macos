@@ -1,25 +1,9 @@
 import { RazerDevice } from './razerdevice';
 
 export class RazerDeviceMouseMat extends RazerDevice {
-  constructor(addon, settingsManager, stateManager, razerProperties) {
-    super(addon, settingsManager, stateManager, razerProperties);
-  }
-
   async init() {
     this.brightness = this.addon.mouseMatGetBrightness(this.internalId);
     return super.init();
-  }
-
-  getState() {
-    const deviceState = super.getState();
-    deviceState['brightness'] = this.brightness;
-    return deviceState;
-  }
-  resetToState(state) {
-    super.resetToState(state);
-    if(typeof state.brightness !== 'undefined') {
-      this.setBrightness(state.brightness);
-    }
   }
 
   setModeNone() {
@@ -58,7 +42,6 @@ export class RazerDeviceMouseMat extends RazerDevice {
 
   // device specific
   setWaveSimple(direction) {
-    this.setModeState('waveSimple', direction);
     this.addon.mouseMatSetModeWave(this.internalId, direction);
   }
 }

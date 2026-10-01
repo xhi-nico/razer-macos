@@ -2,6 +2,9 @@
 #include <iostream>
 #include <iomanip>
 
+#include "macsignals.h"
+#include "calendar.h"
+
 extern "C"
 {
 #include "razerdevice.h"
@@ -10,6 +13,7 @@ extern "C"
 #include "razermousedock_driver.h"
 #include "razermousemat_driver.h"
 #include "razerheadphone_driver.h"
+#include "razercommon.h"
 }
 
 RazerDevices devices;
@@ -892,6 +896,11 @@ Napi::Array GetAllDevices(const Napi::CallbackInfo &info) {
     return razerDevices;
 }
 
+// See razer_set_skip_responses: for streaming lighting frames only.
+void SetSkipResponses(const Napi::CallbackInfo &info) {
+    razer_set_skip_responses(info[0].ToBoolean().Value());
+}
+
 void CloseAllDevices(const Napi::CallbackInfo &info) {
     closeAllRazerDevices(devices);
 }
@@ -985,6 +994,10 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     // All devices
     exports.Set("getAllDevices", Napi::Function::New(env, GetAllDevices));
     exports.Set("closeAllDevices", Napi::Function::New(env, CloseAllDevices));
+
+    exports.Set("setSkipResponses", Napi::Function::New(env, SetSkipResponses));
+    InitMacSignals(env, exports);
+    InitCalendar(env, exports);
 
     return exports;
 }

@@ -1,10 +1,6 @@
 import { RazerDevice } from './razerdevice';
 
 export class RazerDeviceAccessory extends RazerDevice {
-  constructor(addon, settingsManager, stateManager, razerProperties) {
-    super(addon, settingsManager, stateManager, razerProperties);
-  }
-
   setModeNone() {
     super.setModeNone();
     this.addon.accessorySetModeNone(this.internalId);
@@ -31,7 +27,6 @@ export class RazerDeviceAccessory extends RazerDevice {
 
   //device specific
   setWaveExtended(directionSpeed) {
-    this.setModeState('waveExtended', directionSpeed);
     this.addon.accessorySetModeWave(this.internalId, directionSpeed);
   }
 }

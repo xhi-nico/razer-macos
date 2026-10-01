@@ -7,12 +7,63 @@
   <img src="screenshots/dark.png">
 </p>
 
+- **Auto lights** Every device follows your Mac, with nothing to set up (see below)
 - **Supporting Razer devices** Keyboards, mice, mouse mats, eGPUs and blade laptops
 - **Custom color picking** Choose your own colors for static, reactive and starlight effects
 - **Persistent color settings** Color effects are saved to onboard memory
 - **Battery indicator** The Mouse Dock is lit red to green by the attached mouse's charge, and
   the charge is shown in the menu bar with a lightning bolt while charging
 - **Works on the latest macOS** Including Intel and Apple Silicon. There are no current plans from Razer to support macOS ([source](https://mysupport.razer.com/app/answers/detail/a_id/1381/kw/macOS))
+
+## Auto lights
+
+On by default; untick **Auto lights** in the menu to drive the lights by hand. Every attached
+device shows the same look, and effects travel across the desk the way it is laid out:
+keyboard on the left, mat underneath, mouse on the right.
+
+| Your Mac | Look |
+|---|---|
+| Locked, another user switched in, asleep, logged out, app quit | Red, stored in the devices so the login screen keeps it |
+| A camera is on | Blue |
+| No keyboard or mouse input for 5 minutes | A slow, dim white breath |
+| Working | White |
+
+When more than one applies, the higher row wins, so a lock during a call still goes red.
+Unlocking sweeps white in from the left; touching anything after idling wakes the desk in a
+quarter second. Plugging in a device gives it the current look within a second or two.
+
+**Meeting countdown.** A minute before a meeting, the keyboard's top row fills amber from left
+to right. Once the meeting has started it pulses, faster and faster, until a microphone turns
+on (you joined) or five minutes pass. A meeting is a timed event in the Mac's Calendar app
+with other attendees that you have not declined. macOS asks once for Calendar access; the
+development build (`yarn dev`) cannot ask, so the countdown only runs in the packaged app.
+
+Picking a colour or effect from the menu switches Auto lights off; brightness leaves it on.
+
+**Attention wave.** `POST http://127.0.0.1:47820/attention` with the header `X-Desk-Lights: 1`
+rolls an orange band across the desk and back, then hands back. To have Claude Code use it when it is
+waiting on you (every finished reply, plus permission prompts and the 60-second idle
+reminder), add to `~/.claude/settings.json`, then restart Claude Code:
+
+```json
+"hooks": {
+  "Stop": [{
+    "hooks": [{
+      "type": "command",
+      "command": "curl -s -m 1 -X POST -H 'X-Desk-Lights: 1' http://127.0.0.1:47820/attention >/dev/null 2>&1 || true",
+      "timeout": 5
+    }]
+  }],
+  "Notification": [{
+    "matcher": "permission_prompt|idle_prompt|elicitation_dialog|agent_needs_input",
+    "hooks": [{
+      "type": "command",
+      "command": "curl -s -m 1 -X POST -H 'X-Desk-Lights: 1' http://127.0.0.1:47820/attention >/dev/null 2>&1 || true",
+      "timeout": 5
+    }]
+  }]
+}
+```
 
 ## About this fork
 

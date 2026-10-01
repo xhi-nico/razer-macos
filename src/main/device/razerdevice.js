@@ -1,8 +1,7 @@
 export class RazerDevice {
-  constructor(addon, settingsManager, stateManager, razerDeviceProperties) {
+  constructor(addon, settingsManager, razerDeviceProperties) {
     this.addon = addon;
     this.settingsManager = settingsManager;
-    this.stateManager = stateManager;
 
     this.name = razerDeviceProperties.name;
     this.productId = razerDeviceProperties.productId;
@@ -19,8 +18,6 @@ export class RazerDevice {
         b: 0,
       }
     };
-    this.activeMode = null;
-    this.activeModeArguments = null;
   }
 
   async init() {
@@ -50,17 +47,6 @@ export class RazerDevice {
     return this.settingsManager.saveSettingsFor(this);
   }
 
-  getState() {
-    return {
-      mode: this.activeMode,
-      args: this.activeModeArguments
-    }
-  }
-
-  resetToState(state) {
-    this.stateManager.resetStateFor(this, state);
-  }
-
   hasFeature(featureIdentifier) {
     return typeof this.getFeature(featureIdentifier) !== 'undefined';
   }
@@ -69,30 +55,14 @@ export class RazerDevice {
   }
 
   //override in device types
-  setModeNone() {
-    this.setModeState('none');
-  }
-  setModeStaticNoStore(color) {
-    this.setModeState('staticNoStore', color);
-  }
-  setModeStatic(color) {
-    this.setModeState('static', color);
-  }
-
-  setSpectrum() {
-    this.setModeState('spectrum');
-  }
-  setBreathe(color) {
-    this.setModeState('breathe', color);
-  }
-
-  /*protected*/ setModeState(mode, modeArguments = null) {
-    this.activeMode = mode;
-    this.activeModeArguments = modeArguments;
-  }
+  setModeNone() {}
+  setModeStaticNoStore(color) {}
+  setModeStatic(color) {}
+  setSpectrum() {}
+  setBreathe(color) {}
 
   getSerializeIgnoredProperties() {
-    return ['addon', 'settingsManager', 'stateManager'];
+    return ['addon', 'settingsManager'];
   }
 
   serialize() {
@@ -103,7 +73,6 @@ export class RazerDevice {
       .forEach(([key, value]) => {
         serializedDevice[key] = value;
       })
-    serializedDevice['state'] = this.getState();
     return serializedDevice;
   }
 }

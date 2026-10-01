@@ -31,3 +31,11 @@ A device needs two things, or it silently never appears:
   themselves; callers must not scale it again.
 - The Pro Click V2 Vertical Edition rejects brightness on `ZERO_LED`; it answers on the underglow
   zone (`0x0A`), while lighting effects work on `ZERO_LED`.
+- Auto lights (`desklights.js` decides, `macsignals.js` watches the Mac) owns the lighting while
+  on, and the attention port `47820` belongs to whichever copy of the app started first.
+- Animation frames are sent with `setSkipResponses(true)` and the no-store writes; only a
+  settled red or white is written normally and stored in the devices. Anything that reads from
+  a device while skipping is on gets garbage, so keep it scoped to a frame.
+- Calendar access needs `NSCalendarsFullAccessUsageDescription`, which only the packaged app's
+  Info.plist has (`build.mac.extendInfo`); `yarn dev` reports calendar `unavailable`. The build
+  is ad-hoc signed, so each new build may ask for Calendar access again.

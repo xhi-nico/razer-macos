@@ -3,6 +3,9 @@ import { app, dialog, BrowserWindow, ipcMain, Menu, nativeImage, nativeTheme, Tr
 import path from 'path';
 import { getMenuFor } from './menu/menubuilder';
 import { FeatureIdentifier } from './feature/featureidentifier';
+import { MacSignals } from './macsignals';
+import addon from '../driver';
+import { clearBatteryMode } from './menu/menubuilderdevice';
 // ?asset resolves to a real file path in dev and in the packaged app,
 // replacing electron-webpack's __static global.
 import trayIconPath from '../../static/assets/iconTemplate.png?asset';
@@ -12,6 +15,9 @@ const version = require('../../package.json').version;
 // Menu bar battery readout. Each tick makes synchronous native USB calls, so
 // keep it slow: a mouse battery moves over hours.
 const TRAY_BATTERY_POLL_MS = 30000;
+
+// Wait for USB to settle after a plug event before re-reading the device list.
+const DEVICE_SETTLE_MS = 800;
 
 /**
  * Application is a small wrapper around an electron app (browserwindow, tray, dialog...)
@@ -37,7 +43,7 @@ export class Application {
 
   initListeners() {
     this.app.on('ready', () => {
-      this.createTray();
+      this.createTray().then(() => this.startSignals());
       this.createWindow();
     });
 
@@ -47,79 +53,6 @@ export class Application {
 
     nativeTheme.on('updated', () => {
       this.createTray();
-    });
-
-    powerMonitor.on('suspend', () => {
-      if(this.razerApplication.stateManager.stateOnSuspend == null) {
-        return;
-      }
-      this.razerApplication.refresh(false).then(() => {
-        return this.razerApplication.stateManager.suspend();
-      });
-    });
-    powerMonitor.on('resume', () => {
-      if(this.razerApplication.stateManager.stateOnResume == null) {
-        return;
-      }
-      this.razerApplication.refresh(false).then(() => {
-        return this.razerApplication.stateManager.resume();
-      });
-    });
-    powerMonitor.on('on-ac', () => {
-      if(this.razerApplication.stateManager.stateOnAc == null) {
-        return;
-      }
-      this.razerApplication.refresh(false).then(() => {
-        return this.razerApplication.stateManager.onAc();
-      });
-    });
-    powerMonitor.on('on-battery', () => {
-      if(this.razerApplication.stateManager.stateOnBattery == null) {
-        return;
-      }
-      this.razerApplication.refresh(false).then(() => {
-        return this.razerApplication.stateManager.onBattery();
-      });
-    });
-    powerMonitor.on('shutdown', () => {
-      if(this.razerApplication.stateManager.stateOnShutdown == null) {
-        return;
-      }
-      this.razerApplication.refresh(false).then(() => {
-        return this.razerApplication.stateManager.shutdown();
-      });
-    });
-    powerMonitor.on('lock-screen', () => {
-      if(this.razerApplication.stateManager.stateOnLockScreen == null) {
-        return;
-      }
-      this.razerApplication.refresh(false).then(() => {
-        return this.razerApplication.stateManager.lockScreen();
-      });
-    });
-    powerMonitor.on('unlock-screen', () => {
-      if(this.razerApplication.stateManager.stateOnUnlockScreen == null) {
-        return;
-      }
-      this.razerApplication.refresh(false).then(() => {
-        return this.razerApplication.stateManager.unlockScreen();
-      });
-    });
-    powerMonitor.on('user-did-become-active', () => {
-      if(this.razerApplication.stateManager.stateOnUserDidBecomeActive == null) {
-        return;
-      }
-      this.razerApplication.refresh(false).then(() => {
-        return this.razerApplication.stateManager.userDidBecomeActive();
-      });
-    });
-    powerMonitor.on('user-did-resign-active', () => {
-      if(this.razerApplication.stateManager.stateOnUserDidResignActive == null) {
-        return;
-      }
-      this.razerApplication.refresh(false).then(() => {
-        return this.razerApplication.stateManager.userDidResignActive();
-      });
     });
 
     // mouse dpi rpc listener
@@ -170,57 +103,6 @@ export class Application {
       currentDevice.setPollRate(pollRate);
     });
 
-    //state manager
-    ipcMain.on('state-settings-add', async (event, stateName) => {
-      event.returnValue = await this.razerApplication.stateManager.addState(stateName);
-    });
-    ipcMain.on('state-settings-remove', (event, stateName) => {
-      this.razerApplication.stateManager.removeState(stateName);
-    });
-    ipcMain.on('state-settings-activate', (event, stateName) => {
-      this.razerApplication.stateManager.activateState(stateName);
-    });
-
-    ipcMain.on('state-settings-start', (event, stateValue) => {
-      this.razerApplication.stateManager.stateOnStart = stateValue;
-      this.razerApplication.stateManager.save();
-    });
-    ipcMain.on('state-settings-suspend', (event, stateValue) => {
-      this.razerApplication.stateManager.stateOnSuspend = stateValue;
-      this.razerApplication.stateManager.save();
-    });
-    ipcMain.on('state-settings-resume', (event, stateValue) => {
-      this.razerApplication.stateManager.stateOnResume = stateValue;
-      this.razerApplication.stateManager.save();
-    });
-    ipcMain.on('state-settings-ac', (event, stateValue) => {
-      this.razerApplication.stateManager.stateOnAc = stateValue;
-      this.razerApplication.stateManager.save();
-    });
-    ipcMain.on('state-settings-battery', (event, stateValue) => {
-      this.razerApplication.stateManager.stateOnBattery = stateValue;
-      this.razerApplication.stateManager.save();
-    });
-    ipcMain.on('state-settings-shutdown', (event, stateValue) => {
-      this.razerApplication.stateManager.stateOnShutdown = stateValue;
-      this.razerApplication.stateManager.save();
-    });
-    ipcMain.on('state-settings-lockscreen', (event, stateValue) => {
-      this.razerApplication.stateManager.stateOnLockScreen = stateValue;
-      this.razerApplication.stateManager.save();
-    });
-    ipcMain.on('state-settings-unlockscreen', (event, stateValue) => {
-      this.razerApplication.stateManager.stateOnUnlockScreen = stateValue;
-      this.razerApplication.stateManager.save();
-    });
-    ipcMain.on('state-settings-userdidbecomeactive', (event, stateValue) => {
-      this.razerApplication.stateManager.stateOnUserDidBecomeActive = stateValue;
-      this.razerApplication.stateManager.save();
-    });
-    ipcMain.on('state-settings-userdidresignactive', (event, stateValue) => {
-      this.razerApplication.stateManager.stateOnUserDidResignActive = stateValue;
-      this.razerApplication.stateManager.save();
-    });
   }
 
 
@@ -320,7 +202,30 @@ export class Application {
       this.refreshTray();
     });
 
-    this.refreshTray(true);
+    return this.refreshTray(true);
+  }
+
+  startSignals() {
+    const { lights } = this.razerApplication;
+    this.signals = new MacSignals(addon, powerMonitor);
+    this.signals.on('change', state => lights.update(state));
+    this.signals.on('attention', () => lights.pulse());
+    this.signals.on('sleep', () => lights.sleepNow());
+    this.signals.on('devices', () => {
+      clearTimeout(this.deviceSettleTimer);
+      this.deviceSettleTimer = setTimeout(() => this.refreshTray(true, true), DEVICE_SETTLE_MS);
+    });
+    this.signals.start();
+  }
+
+  setAutoLights(on) {
+    const { lights, deviceManager } = this.razerApplication;
+    if (on) {
+      this.razerApplication.stopAnimations();
+      (deviceManager.activeRazerDevices || []).forEach(clearBatteryMode);
+    }
+    lights.setAuto(on);
+    this.refreshTray();
   }
 
   updateTrayBattery() {
@@ -344,9 +249,9 @@ export class Application {
     this.tray.setTitle(`  ${device.chargingStatus ? '⚡' : '🔋'}${batteryLevel}%`);
   }
 
-  refreshTray(withDeviceRefresh) {
-    const refresh = withDeviceRefresh ? this.razerApplication.refresh() : Promise.resolve(true);
-    refresh.then(() => {
+  refreshTray(withDeviceRefresh, force = false) {
+    const refresh = withDeviceRefresh ? this.razerApplication.refresh(force) : Promise.resolve(true);
+    return refresh.then(() => {
       const contextMenu = Menu.buildFromTemplate(getMenuFor(this));
       this.tray.setContextMenu(contextMenu);
       // Devices have just been enumerated, so the readout can be filled in now

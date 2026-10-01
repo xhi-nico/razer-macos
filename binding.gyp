@@ -5,7 +5,8 @@
       "cflags!": [ "-fno-exceptions" ],
       "cflags_cc!": [ "-fno-exceptions" ],
       "sources": [ 
-          "<!@(ls -1 src/driver/*.cc)", 
+          "<!@(ls -1 src/driver/*.cc)",
+          "<!@(ls -1 src/driver/*.mm)",
           "<!@(ls -1 librazermacos/src/lib/*.c)" ],
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",
@@ -14,7 +15,12 @@
       'defines': [ 'NAPI_DISABLE_CPP_EXCEPTIONS' ],
             'LDFLAGS': [
           '-framework IOKit',
-          '-framework CoreFoundation'
+          '-framework CoreFoundation',
+          '-framework CoreMediaIO',
+          '-framework CoreGraphics',
+          '-framework CoreAudio',
+          '-framework EventKit',
+          '-framework Foundation'
       ],
       'xcode_settings': {
           'VALID_ARCHS': 'arm64 x86_64',
@@ -23,6 +29,7 @@
           'CLANG_CXX_LIBRARY': 'libc++',
           'MACOSX_DEPLOYMENT_TARGET': '12.0.1',
           'GCC_ENABLE_CPP_EXCEPTIONS': 'YES',
+          'CLANG_ENABLE_OBJC_ARC': 'YES',
           'OTHER_CFLAGS': [
               '-arch x86_64',
               '-arch arm64'
@@ -31,7 +38,12 @@
               '-arch x86_64',
               '-arch arm64',
               '-framework IOKit',
-              '-framework CoreFoundation'
+              '-framework CoreFoundation',
+              '-framework CoreMediaIO',
+              '-framework CoreGraphics',
+              '-framework CoreAudio',
+              '-framework EventKit',
+              '-framework Foundation'
           ],
       }
     }

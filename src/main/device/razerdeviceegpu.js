@@ -1,10 +1,6 @@
 import { RazerDevice } from './razerdevice';
 
 export class RazerDeviceEgpu extends RazerDevice {
-  constructor(addon, settingsManager, stateManager, razerProperties) {
-    super(addon, settingsManager, stateManager, razerProperties);
-  }
-
   setModeNone() {
     super.setModeNone();
     this.addon.egpuSetModeNone(this.internalId);
@@ -30,7 +26,6 @@ export class RazerDeviceEgpu extends RazerDevice {
 
   //device specific
   setWaveSimple(direction) {
-    this.setModeState('waveSimple', direction);
     this.addon.egpuSetModeWave(this.internalId, direction);
   }
 }

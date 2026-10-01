@@ -1,10 +1,6 @@
 import { RazerDevice } from './razerdevice';
 
 export class RazerDeviceHeadphone extends RazerDevice {
-  constructor(addon, settingsManager, stateManager, razerProperties) {
-    super(addon, settingsManager, stateManager, razerProperties);
-  }
-
   setModeNone() {
     super.setModeNone();
     this.addon.headphoneSetModeNone(this.internalId);

@@ -15,18 +15,19 @@ import { RazerDeviceType } from './device/razerdevicetype';
  * @constructor
  */
 export class RazerDeviceManager {
-  constructor(settingsManager, stateManager) {
+  constructor(settingsManager) {
     this.addon = addon;
     this.settingsManager = settingsManager;
-    this.stateManager = stateManager;
     this.razerConfigDevices = this.getAllRazerDeviceConfigurations();
     this.activeRazerDevices = null;
   }
 
-  async refreshRazerDevices() {
-    if(new Date().getTime() < this.lastRefresh + 2000) {
+  // Resolves true once the device list has been rebuilt, false when throttled.
+  // force skips the throttle: a replugged device must be picked up even right after a refresh.
+  async refreshRazerDevices(force = false) {
+    if(!force && new Date().getTime() < this.lastRefresh + 2000) {
       /// Refresh is called too fast. Wait a bit...
-      return;
+      return false;
     }
     this.lastRefresh = new Date().getTime();
     this.closeDevices();
@@ -54,6 +55,7 @@ export class RazerDeviceManager {
       return devices.filter(device => device !== null);
     }).then((devices) => {
       this.activeRazerDevices = this.sortDevices(devices);
+      return true;
     });
   }
 
@@ -147,7 +149,7 @@ export class RazerDeviceManager {
       });
     }
 
-    return new device(this.addon, this.settingsManager, this.stateManager, razerDeviceProperties);
+    return new device(this.addon, this.settingsManager, razerDeviceProperties);
   }
 
   getAllRazerDeviceConfigurations() {
@@ -165,11 +167,6 @@ export class RazerDeviceManager {
         image: razerConfigDevice.image,
       };
     });
-  }
-
-  // Names for every known product ID, including devices that are not attached.
-  getDeviceNames() {
-    return Object.fromEntries(this.razerConfigDevices.map(d => [d.productId, d.name]));
   }
 
   getByInternalId(internalId) {

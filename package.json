@@ -75,7 +75,11 @@
           ]
         }
       ],
-      "x64ArchFiles": "**/node_modules/uiohook-napi/prebuilds/**"
+      "x64ArchFiles": "**/node_modules/uiohook-napi/prebuilds/**",
+      "extendInfo": {
+        "NSCalendarsFullAccessUsageDescription": "Auto lights counts down to your next meeting on the keyboard.",
+        "NSCalendarsUsageDescription": "Auto lights counts down to your next meeting on the keyboard."
+      }
     },
     "files": [
       "out/**/*",

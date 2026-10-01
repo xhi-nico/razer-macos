@@ -1,7 +1,8 @@
-import { getDeviceMenuFor } from './menubuilderdevice';
+import { getDeviceMenuFor, takesOverLights } from './menubuilderdevice';
 
 export function getMenuFor(application) {
   const fullMenu = getMainMenu(application)
+    .concat(getAllDevicesMenu(application))
     .concat(getCustomColorsCycleMenu(application))
     .concat(getDeviceMenu(application))
     .concat(getMainMenuBottom(application));
@@ -27,6 +28,16 @@ function patch(deviceMenu, application) {
 function getMainMenu(application) {
   return [
     {
+      label: 'Auto lights',
+      type: 'checkbox',
+      checked: application.razerApplication.lights.auto,
+      toolTip: 'White while you work, red when you leave, blue on camera',
+      click(menuItem) {
+        application.setAutoLights(menuItem.checked);
+      },
+    },
+    { type: 'separator' },
+    {
       label: 'Refresh Device List',
       click() {
         application.refreshTray(true);
@@ -46,23 +57,17 @@ function getMainMenu(application) {
         }).catch(() => {});
       }
     },
-    {
-      label: 'State manager',
-      click() {
-        const { stateManager, deviceManager } = application.razerApplication;
-        application.showView({
-          mode: 'state',
-          state: stateManager.serialize(),
-          deviceNames: deviceManager.getDeviceNames(),
-        });
-      },
-    },
     { type: 'separator' },
     {
       label: 'All Devices',
       enabled: false,
     },
     { type: 'separator' },
+  ];
+}
+
+function getAllDevicesMenu(application) {
+  return [
     {
       label: 'None',
       click() {
@@ -129,17 +134,17 @@ function getMainMenu(application) {
         },
       ]
     },
-  ];
+  ].map(item => takesOverLights(application, item));
 }
 
 function getCustomColorsCycleMenu(application) {
   const cccMenu = [
-    {
+    takesOverLights(application, {
       label: 'Start Cycle',
       click() {
         application.razerApplication.cycleAnimation.start();
       },
-    },
+    }),
     {
       label: 'Stop Cycle',
       click() {
