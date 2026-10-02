@@ -76,7 +76,7 @@ curl -s -X POST -H 'X-Desk-Lights: 1' http://127.0.0.1:47820/show \
 | `duration` | seconds, up to 12 hours | `10` |
 | `period` | seconds per pulse or wave | `2`, wave `2.6` |
 | `priority` | higher paints over lower; the call lights and meeting countdown sit at `50` | `10` |
-| `id` | posting the same id again updates that layer, keeping its place and its animation | made up |
+| `id` | posting the same id again updates that layer: it keeps its place, crossfades to a new colour or effect, and runs for its new duration | made up |
 | `group` | layers sharing a group split their region between them, oldest on the left | none |
 
 It answers `{"id": ..., "shown": ...}`; `shown` is false while Auto lights is off or the Mac is
@@ -87,30 +87,39 @@ the reason. Layers ease in and out.
 - `GET /status` shows the current look, every layer with its seconds left, and which devices answer.
 - `POST /attention` rolls an orange band across the desk and back three times, over the call
   lights; a second one while it rolls is ignored.
+- `POST /claude-code` takes Claude Code's hook JSON (below).
 
-To have Claude Code use the attention wave when it is waiting on you (every finished reply,
-plus permission prompts and the 60-second idle reminder), add to `~/.claude/settings.json`,
-then restart Claude Code:
+## Claude Code on the keyboard
+
+Each Claude Code session gets a segment of the keyboard's top row, oldest on the left:
+
+| Session | Segment |
+|---|---|
+| Working | Coral, a slow wave rolling through it |
+| Waiting on you (finished a reply, or asking permission or a question) | Steady green; the attention wave rolls across the desk once as it starts waiting |
+| Stopped on an API error (rate limit, overload, ...) | Red pulse, until the next prompt |
+
+Closing the session clears its segment, and one that was killed fades after an hour (working)
+or four (waiting, errored). The call lights and meeting countdown show over the segments.
+
+Every hook pipes its JSON to the app; add to `~/.claude/settings.json`, then restart Claude Code.
+`PostToolUse` is how a session goes back to working after you answer a permission prompt.
 
 ```json
 "hooks": {
-  "Stop": [{
-    "hooks": [{
-      "type": "command",
-      "command": "curl -s -m 1 -X POST -H 'X-Desk-Lights: 1' http://127.0.0.1:47820/attention >/dev/null 2>&1 || true",
-      "timeout": 5
-    }]
-  }],
+  "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "curl -s -m 1 -X POST -H 'X-Desk-Lights: 1' --data-binary @- http://127.0.0.1:47820/claude-code >/dev/null 2>&1 || true", "timeout": 5 }] }],
+  "PostToolUse": [{ "hooks": [{ "type": "command", "command": "curl -s -m 1 -X POST -H 'X-Desk-Lights: 1' --data-binary @- http://127.0.0.1:47820/claude-code >/dev/null 2>&1 || true", "timeout": 5 }] }],
+  "Stop": [{ "hooks": [{ "type": "command", "command": "curl -s -m 1 -X POST -H 'X-Desk-Lights: 1' --data-binary @- http://127.0.0.1:47820/claude-code >/dev/null 2>&1 || true", "timeout": 5 }] }],
+  "StopFailure": [{ "hooks": [{ "type": "command", "command": "curl -s -m 1 -X POST -H 'X-Desk-Lights: 1' --data-binary @- http://127.0.0.1:47820/claude-code >/dev/null 2>&1 || true", "timeout": 5 }] }],
   "Notification": [{
-    "matcher": "permission_prompt|idle_prompt|elicitation_dialog|agent_needs_input",
-    "hooks": [{
-      "type": "command",
-      "command": "curl -s -m 1 -X POST -H 'X-Desk-Lights: 1' http://127.0.0.1:47820/attention >/dev/null 2>&1 || true",
-      "timeout": 5
-    }]
-  }]
+    "matcher": "permission_prompt|idle_prompt|elicitation_dialog|elicitation_url_dialog|agent_needs_input",
+    "hooks": [{ "type": "command", "command": "curl -s -m 1 -X POST -H 'X-Desk-Lights: 1' --data-binary @- http://127.0.0.1:47820/claude-code >/dev/null 2>&1 || true", "timeout": 5 }]
+  }],
+  "SessionEnd": [{ "hooks": [{ "type": "command", "command": "curl -s -m 1 -X POST -H 'X-Desk-Lights: 1' --data-binary @- http://127.0.0.1:47820/claude-code >/dev/null 2>&1 || true", "timeout": 5 }] }]
 }
 ```
+
+When the app is not running, the hooks do nothing.
 
 ## About this fork
 

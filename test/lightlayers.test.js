@@ -61,3 +61,18 @@ describe('LightLayers', () => {
     expect(level(750, 1)).toBeGreaterThan(level(750, 0.5)); // reaching the far end
   });
 });
+
+describe('LightLayers updates', () => {
+  const shown = now => layers => layers.painters(now, () => true)[0]([0, 0, 0], { desk: 0.5 }).map(Math.round);
+
+  it('crossfades to a new colour, and keeps a steady one steady', () => {
+    const layers = new LightLayers();
+    layers.show({ id: 'a', color: [200, 0, 0], duration: 60 }, 0);
+    layers.show({ id: 'a', color: [200, 0, 0], duration: 60 }, 1000);
+    expect(layers.animating(1000)).toBe(false);
+    layers.show({ id: 'a', color: [0, 0, 200], duration: 60 }, 2000);
+    expect(shown(2250)(layers)).toEqual([100, 0, 100]);
+    expect(shown(2500)(layers)).toEqual([0, 0, 200]);
+    expect(layers.animating(2600)).toBe(false);
+  });
+});

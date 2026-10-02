@@ -20,6 +20,8 @@ const WAVE_WIDTH = 0.3;
 // Layers ease in and out rather than cutting.
 const FADE_IN_MS = 200;
 const FADE_OUT_MS = 400;
+// An update that changes a layer's colour or effect crossfades over this long.
+const CHANGE_MS = 500;
 
 export class LayerError extends Error {
   constructor(message, status = 400) {
@@ -117,7 +119,8 @@ export class LightLayers {
   }
 
   // Adds a layer, or updates the one with the same id: an update keeps its
-  // place and its animation's phase, and runs for its new duration from now.
+  // place, runs for its new duration from now, and crossfades to a new colour
+  // or effect; the same effect keeps its animation's phase.
   show(spec, now) {
     const parsed = parseLayer(spec);
     this.prune(now);
@@ -127,11 +130,16 @@ export class LightLayers {
       throw new LayerError(`at most ${MAX_LAYERS} layers at once`, 429);
     }
     this.made++;
+    const sameEffect = existing && existing.effect === parsed.effect && existing.periodMs === parsed.periodMs;
+    const changed = existing && !(sameEffect && String(existing.color) === String(parsed.color));
     const layer = {
       ...parsed,
       id,
       order: existing?.order ?? this.made,
       startedAt: existing?.startedAt ?? now,
+      animatedFrom: sameEffect ? existing.animatedFrom : now,
+      was: changed ? { color: existing.color, effect: existing.effect, periodMs: existing.periodMs, animatedFrom: existing.animatedFrom } : existing?.was,
+      changedAt: changed ? now : existing?.changedAt,
       endsAt: now + parsed.durationMs,
     };
     this.layers.set(id, layer);
@@ -166,7 +174,7 @@ export class LightLayers {
   animating(now) {
     this.prune(now);
     return [...this.layers.values()].some(layer =>
-      layer.effect !== 'solid' || now - layer.startedAt < FADE_IN_MS || layer.endsAt - now <= FADE_OUT_MS);
+      layer.effect !== 'solid' || now - layer.startedAt < FADE_IN_MS || layer.endsAt - now <= FADE_OUT_MS || now - layer.changedAt < CHANGE_MS);
   }
 
   // When steady layers next need a frame (a fade-out starting, or a layer gone), or Infinity.
@@ -190,7 +198,8 @@ export class LightLayers {
 
     return layers.map(layer => {
       const strength = clamp01(Math.min((now - layer.startedAt) / FADE_IN_MS, (layer.endsAt - now) / FADE_OUT_MS));
-      const elapsed = now - layer.startedAt;
+      const change = now - layer.changedAt < CHANGE_MS ? easeInOut((now - layer.changedAt) / CHANGE_MS) : 1;
+      const look = (shown, color, at) => mix(color, shown.color, effectAmount(shown, now - shown.animatedFrom, at));
       const members = layer.group == null ? [layer] : groups.get(`${layer.region}/${layer.group}`);
       const share = members.length;
       const index = members.indexOf(layer);
@@ -206,7 +215,8 @@ export class LightLayers {
           }
           at = position * share - index;
         }
-        return mix(color, layer.color, strength * effectAmount(layer, elapsed, at));
+        const painted = change < 1 ? mix(look(layer.was, color, at), look(layer, color, at), change) : look(layer, color, at);
+        return mix(color, painted, strength);
       };
     });
   }

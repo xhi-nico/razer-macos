@@ -16,7 +16,7 @@ export const ATTENTION = {
   priority: CALL_PRIORITY + 10,
 };
 
-function readJson(request) {
+export function readJson(request) {
   return new Promise((resolve, reject) => {
     let body = '';
     request.setEncoding('utf8');

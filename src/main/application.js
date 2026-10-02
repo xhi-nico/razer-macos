@@ -3,7 +3,8 @@ import { app, dialog, BrowserWindow, ipcMain, Menu, nativeImage, Tray, powerMoni
 import path from 'path';
 import { getMenuFor } from './menu/menubuilder';
 import { MacSignals } from './macsignals';
-import { LightsApi } from './lightsapi';
+import { LightsApi, readJson } from './lightsapi';
+import { ClaudeCodeSessions } from './claudecode';
 import addon from '../driver';
 import { clearBatteryMode } from './menu/menubuilderdevice';
 import { guard } from './guard';
@@ -182,6 +183,11 @@ export class Application {
     });
     this.signals.start();
     this.lightsApi = new LightsApi(lights);
+    // Claude Code's hooks post their JSON here. Always a 204: nothing to tell Claude Code.
+    const sessions = new ClaudeCodeSessions(lights);
+    this.lightsApi.route('POST', /^\/claude-code$/, async request => {
+      sessions.handle(await readJson(request).catch(() => null));
+    });
     this.lightsApi.start();
   }
 

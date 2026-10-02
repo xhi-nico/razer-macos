@@ -34,7 +34,10 @@ version number.
   keyboard, top row, mouse or mat for a while, with a priority, an id to update or cancel it,
   groups that split a region, and a status endpoint.
 - An attention wave (an orange band across every device and back, three times) on `POST
-  127.0.0.1:47820/attention`, for Claude Code's Stop and Notification hooks.
+  127.0.0.1:47820/attention`.
+- Claude Code sessions on the keyboard's top row, one segment each: a coral wave while working,
+  steady green when waiting on you (with one attention wave), a red pulse after an API error.
+  Fed by Claude Code's hooks posting to `/claude-code`.
 - Call lights on the keyboard's top row: a slow deep purple pulse while a camera or mic is on.
 - A live magenta voice meter over the call lights: it fills the top row from the left with
   whoever is talking (your mic, or what the call app plays), with a held peak.
