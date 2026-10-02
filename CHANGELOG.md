@@ -57,7 +57,7 @@ version number.
 - A wireless mouse under 15% that is not charging pulses amber.
 - A device that stops answering shows "⚠️ not answering" next to its name in the menu, until
   it recovers.
-- A log file, `~/Library/Logs/Razer macOS/main.log`, opened from **About > Open Log**. Uncaught
+- A log file, `~/Library/Logs/razer-macos/main.log`, opened from **About > Open Log**. Uncaught
   errors are logged instead of stopping at an error dialog, and native crashes leave a local
   crash report.
 - **Open at Login** in the menu. Only one copy of the app runs; opening it again shows its menu.

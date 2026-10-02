@@ -355,10 +355,10 @@ A: Use the "Refresh Device List" option, which can be found when pressing the Ra
 
 Q: Something went wrong. Where do I look?
 
-A: **About > Open Log** in the menu opens `~/Library/Logs/Razer macOS/main.log`. A device that
+A: **About > Open Log** in the menu opens `~/Library/Logs/razer-macos/main.log`. A device that
 stops answering while Auto lights is on shows "⚠️ not answering" next to its name in the menu;
 it is logged, retried on its own, and the mark clears when it recovers. If the
-app itself crashed, macOS keeps a report in `~/Library/Application Support/Razer macOS/Crashpad`;
+app itself crashed, macOS keeps a report in `~/Library/Application Support/razer-macos/Crashpad`;
 nothing is uploaded.
 
 Q: How do I start it when I log in?

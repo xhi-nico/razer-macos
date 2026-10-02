@@ -14,7 +14,8 @@ Fork of [slicke/razer-macos](https://github.com/slicke/razer-macos) (remote `ups
   `scripts/sign.js` signs with the self-signed "Razer macOS Local Signing" identity when the Mac
   has it (`scripts/make-signing-identity.sh`, once per Mac), so macOS permissions survive
   rebuilds; otherwise ad-hoc. Hardened runtime stays off, since it blocks ad-hoc signed libraries.
-- Logs: `~/Library/Logs/<app name>/main.log` (`razer-macos` in dev, `Razer macOS` packaged).
+- Logs: `~/Library/Logs/razer-macos/main.log`, dev and packaged alike. Electron names the folder
+  from `package.json` `name`, which also places the settings, so renaming it loses them.
 
 ## Adding a device
 
