@@ -2,11 +2,8 @@ import { RazerDevice } from './razerdevice';
 import { FeatureIdentifier } from '../feature/featureidentifier';
 
 export class RazerDeviceMouse extends RazerDevice {
-  async init() {
-    if(this.hasFeature(FeatureIdentifier.BATTERY)) {
-      this.batteryLevel = this.addon.getBatteryLevel(this.internalId);
-      this.chargingStatus = this.addon.getChargingStatus(this.internalId);
-    }
+  readState() {
+    this.refresh();
 
     if(this.hasFeature(FeatureIdentifier.MOUSE_DPI)) {
       this.dpi = this.addon.mouseGetDpi(this.internalId);
@@ -35,8 +32,6 @@ export class RazerDeviceMouse extends RazerDevice {
         this.brightnessRight = this.addon.mouseGetRightBrightness(this.internalId);
       }
     }
-
-    return super.init();
   }
 
   refresh() {

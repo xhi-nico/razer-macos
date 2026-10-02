@@ -1,10 +1,12 @@
 import { RazerApplication } from './razerapplication';
-import { app, dialog, BrowserWindow, ipcMain, Menu, nativeImage, nativeTheme, Tray, powerMonitor } from 'electron';
+import { app, dialog, BrowserWindow, ipcMain, Menu, nativeImage, Tray, powerMonitor, shell } from 'electron';
 import path from 'path';
 import { getMenuFor } from './menu/menubuilder';
 import { MacSignals } from './macsignals';
 import addon from '../driver';
 import { clearBatteryMode } from './menu/menubuilderdevice';
+import { guard } from './guard';
+import { getLogFile } from './log';
 // ?asset resolves to a real file path in dev and in the packaged app,
 // replacing electron-webpack's __static global.
 import trayIconPath from '../../static/assets/iconTemplate.png?asset';
@@ -30,6 +32,15 @@ export class Application {
     this.dialog = dialog;
     this.APP_VERSION = version;
 
+    // A second copy would fight this one for the devices and the attention port.
+    if (!app.requestSingleInstanceLock()) {
+      console.log('Already running, so this copy quits');
+      app.quit();
+      return;
+    }
+    // Opening the app again shows its menu, the closest thing it has to a window.
+    app.on('second-instance', () => this.tray?.popUpContextMenu());
+
     this.initListeners();
 
     // Init the main application
@@ -46,60 +57,35 @@ export class Application {
       this.razerApplication.destroy();
     });
 
-    nativeTheme.on('updated', () => {
-      this.createTray();
+    // Settings window actions. The window holds a copy of the device from when
+    // it opened, so each resolves the live one first.
+    this.onDevice('request-set-dpi', (device, { dpi }) => device.setDPI(dpi));
+    this.onDevice('update-brightness', (device, { brightness }) => device.setBrightness(brightness));
+    this.onDevice('request-set-custom-color', (device, { device: edited }) => device.setSettings(edited.settings));
+    ['Matrix', 'Logo', 'Scroll', 'Left', 'Right'].forEach(zone => {
+      this.onDevice(`update-mouse-${zone.toLowerCase()}-brightness`, (device, { brightness }) => device[`setBrightness${zone}`](brightness));
     });
+    this.onDevice('update-mouse-pollrate', (device, { pollRate }) => device.setPollRate(pollRate), false);
 
-    // mouse dpi rpc listener
-    ipcMain.on('request-set-dpi', (_, arg) => {
-      const { device, dpi } = arg;
-      const currentDevice = this.razerApplication.deviceManager.getByInternalId(device.internalId);
-      currentDevice.setDPI(dpi);
-      this.refreshTray();
-    });
-
-    // keyboard brightness rpc listener
-    ipcMain.on('update-brightness', (_, arg) => {
-      const { device, brightness } = arg;
-      const currentDevice = this.razerApplication.deviceManager.getByInternalId(device.internalId);
-      currentDevice.setBrightness(brightness);
-      this.refreshTray();
-    });
-
-    // custom color rpc listener
-    ipcMain.on('request-set-custom-color', (_, arg) => {
-      const { device } = arg;
-      const currentDevice = this.razerApplication.deviceManager.getByInternalId(device.internalId);
-      currentDevice.setSettings(device.settings);
-      this.refreshTray();
-    });
-
-    // custom cycle color rpc listener
-    ipcMain.on('request-cycle-color', (_, arg) => {
-      const { index, color } = arg;
+    ipcMain.on('request-cycle-color', (_, { index, color }) => guard('Cycle colour', () => {
       this.razerApplication.cycleAnimation.updateColor(index, color.rgb);
       this.refreshTray();
-    });
-
-    // mouse brightness
-    ['Matrix','Logo', 'Scroll', 'Left', 'Right'].forEach(brightnessMouseIdentifier => {
-      ipcMain.on('update-mouse-' + brightnessMouseIdentifier.toLowerCase() + '-brightness', (_, arg) => {
-        const { device, brightness } = arg;
-        const currentDevice = this.razerApplication.deviceManager.getByInternalId(device.internalId);
-        currentDevice['setBrightness' + brightnessMouseIdentifier](brightness);
-        this.refreshTray();
-      });
-    });
-
-    // poll rate
-    ipcMain.on('update-mouse-pollrate', (_, arg) => {
-      const { device, pollRate } = arg;
-      const currentDevice = this.razerApplication.deviceManager.getByInternalId(device.internalId);
-      currentDevice.setPollRate(pollRate);
-    });
-
+    }));
   }
 
+  onDevice(channel, apply, refreshMenu = true) {
+    ipcMain.on(channel, (_, message) => guard(channel, () => {
+      const device = this.razerApplication.deviceManager.resolve(message.device);
+      if (device == null) {
+        console.warn(`${channel}: ${message.device?.name ?? 'the device'} is no longer attached`);
+        return;
+      }
+      apply(device, message);
+      if (refreshMenu) {
+        this.refreshTray();
+      }
+    }));
+  }
 
   createWindow() {
     this.browserWindow = new BrowserWindow({
@@ -163,32 +149,21 @@ export class Application {
   }
 
   createTray() {
-    if (!this.isDevelopment) {
-      if (this.app.dock) {
-        this.app.dock.hide();
-      }
-
-      if (this.tray != null) {
-        this.tray.destroy();
-      }
+    if (!this.isDevelopment && this.app.dock) {
+      this.app.dock.hide();
     }
 
     // The bundler content-hashes the asset filename, so it no longer ends in
     // "Template" and macOS will not infer a template image from the name.
     // Set the flag explicitly instead of relying on that convention.
     // https://www.electronjs.org/docs/api/native-image#template-image
+    // macOS also redraws a template image for light and dark menu bars by itself.
     const trayIcon = nativeImage.createFromPath(trayIconPath);
     trayIcon.setTemplateImage(true);
     this.tray = new Tray(trayIcon);
     this.tray.setToolTip('Razer macOS menu');
     this.tray.on('click', () => {
-      if(this.razerApplication.deviceManager.activeRazerDevices != null) {
-        this.razerApplication.deviceManager.activeRazerDevices.forEach(device => {
-          if (device !== null) {
-            device.refresh();
-          }
-        });
-      }
+      this.razerApplication.deviceManager.forEachDevice(device => device.refresh());
       this.refreshTray();
     });
 
@@ -212,7 +187,7 @@ export class Application {
     const { lights, deviceManager } = this.razerApplication;
     if (on) {
       this.razerApplication.stopAnimations();
-      (deviceManager.activeRazerDevices || []).forEach(clearBatteryMode);
+      deviceManager.activeRazerDevices.forEach(clearBatteryMode);
     }
     lights.setAuto(on);
     this.refreshTray();
@@ -224,6 +199,18 @@ export class Application {
       const contextMenu = Menu.buildFromTemplate(getMenuFor(this));
       this.tray.setContextMenu(contextMenu);
     });
+  }
+
+  get openAtLogin() {
+    return this.app.getLoginItemSettings().openAtLogin;
+  }
+
+  set openAtLogin(on) {
+    this.app.setLoginItemSettings({ openAtLogin: on });
+  }
+
+  openLog() {
+    shell.openPath(getLogFile());
   }
 
   showConfirm(message) {

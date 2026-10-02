@@ -71,6 +71,12 @@ const TOP_ROW_FADE_MS = 500;
 // starting up can miss the first write.
 const DEVICE_RECHECK_MS = [2000, 6000];
 
+// A device that fails a write (stalled, asleep, unplugged) is left out of
+// frames and retried on its own after this, doubling with each failure up to
+// the cap. Skipping it matters: a stalled device takes a full USB timeout per write.
+const RETRY_FIRST_MS = 1000;
+const RETRY_MAX_MS = 30 * 1000;
+
 // Pause between frames: short for moving effects, longer for slow ones so an
 // idle desk or an hour-long call costs little.
 const FRAME_GAP_MS = 30;
@@ -142,6 +148,7 @@ export class DeskLights {
     this.topRowShown = null; // the top-row layer last painted
     this.topRowFade = null; // { from: layer, startedAt }
     this.written = new Map(); // device -> what it last showed, to skip repeats
+    this.failing = new Map(); // device -> { retryAt, delay } while its writes fail
     this.holds = 0; // refreshes in flight
     this.timer = null;
     this.rechecks = [];
@@ -233,6 +240,7 @@ export class DeskLights {
     this.holds = Math.max(0, this.holds - 1);
     if (rebuilt) {
       this.written.clear();
+      this.failing.clear();
       this.rechecks.forEach(clearTimeout);
       this.rechecks = DEVICE_RECHECK_MS.map(delay =>
         setTimeout(() => {
@@ -259,10 +267,12 @@ export class DeskLights {
       this.timer = setTimeout(() => this.render(), moving ? FRAME_GAP_MS : SLOW_FRAME_GAP_MS);
       return;
     }
-    // Nothing moving: sleep until the next meeting's countdown or the next daylight step.
+    // Nothing moving: sleep until the next meeting's countdown, the next daylight
+    // step or the next retry of a failing device.
     const daylightChange = this.look.daylight ? this.daylight.nextChange(now) : Infinity;
     const wake = Math.min(
       daylightChange <= now ? now + DAYLIGHT_STEP_MS : daylightChange,
+      ...[...this.failing.values()].map(({ retryAt }) => Math.max(retryAt, now + FRAME_GAP_MS)),
       ...this.meetings
         .filter(start => !this.joinedMeetings.has(start))
         .map(start => start - MEETING_LEAD_MS)
@@ -286,6 +296,7 @@ export class DeskLights {
     try {
       (this.getDevices() || [])
         .filter(device => device.hasFeature(FeatureIdentifier.STATIC))
+        .filter(device => !(this.failing.get(device.internalId)?.retryAt > now))
         .forEach(device => {
           const grid = keyboardGrid(device);
           if (grid == null) {
@@ -340,7 +351,7 @@ export class DeskLights {
     if (keys.every((key, index) => key === shown[index])) {
       return;
     }
-    try {
+    this.attempt(device, () => {
       rows.forEach((row, index) => {
         if (keys[index] !== shown[index]) {
           device.setCustomFrame([index, 0, row.length - 1, ...row.flat()]);
@@ -348,20 +359,38 @@ export class DeskLights {
       });
       device.setModeCustom();
       this.written.set(device.internalId, keys);
-    } catch (error) {
-      console.warn(`Lights: ${device.name} did not take the frame`, error);
-    }
+    });
   }
 
   writeIfChanged(device, content, write) {
     if (this.written.get(device.internalId) === content) {
       return;
     }
-    try {
+    this.attempt(device, () => {
       write();
       this.written.set(device.internalId, content);
+    });
+  }
+
+  // Runs one device's write, tracking failures for the retry (see RETRY_FIRST_MS).
+  // Logs when a device starts failing and when it recovers, not every frame between.
+  attempt(device, write) {
+    const id = device.internalId;
+    try {
+      write();
+      if (this.failing.delete(id)) {
+        console.log(`Lights: ${device.name} is answering again`);
+      }
     } catch (error) {
-      console.warn(`Lights: ${device.name} did not take the frame`, error);
+      // What it shows is unknown now, so the retry must write even a frame that
+      // matches the last one it took.
+      this.written.delete(id);
+      const failing = this.failing.get(id);
+      const delay = failing ? Math.min(failing.delay * 2, RETRY_MAX_MS) : RETRY_FIRST_MS;
+      if (!failing) {
+        console.warn(`Lights: ${device.name} did not take the frame, retrying on its own:`, error?.message ?? error);
+      }
+      this.failing.set(id, { retryAt: Date.now() + delay, delay });
     }
   }
 

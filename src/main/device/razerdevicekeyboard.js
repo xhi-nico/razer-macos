@@ -9,9 +9,8 @@ export class RazerDeviceKeyboard extends RazerDevice {
     this.wheelAnimation = null;
   }
 
-  async init() {
+  readState() {
     this.brightness = this.addon.KbdGetBrightness(this.internalId);
-    return super.init();
   }
 
   getDefaultSettings() {
@@ -106,6 +105,20 @@ export class RazerDeviceKeyboard extends RazerDevice {
     this.stopAnimations();
     this.wheelAnimation = new RazerAnimationWheel(this, featureConfiguration, speed);
     this.wheelAnimation.start();
+  }
+
+  /**
+   * Shows `rows` (a colour for each key, row by row) without waiting for the
+   * keyboard's replies, as Auto lights does; for effects that send many frames.
+   */
+  setCustomFrames(rows) {
+    this.addon.setSkipResponses(true);
+    try {
+      rows.forEach((row, index) => this.setCustomFrame([index, 0, row.length - 1, ...row.flat()]));
+      this.setModeCustom();
+    } finally {
+      this.addon.setSkipResponses(false);
+    }
   }
 
   setCustomFrame(frame) {

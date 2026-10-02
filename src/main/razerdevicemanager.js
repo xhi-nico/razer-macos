@@ -9,6 +9,7 @@ import { RazerDeviceAccessory } from './device/razerdeviceaccessory';
 import { RazerDevice } from './device/razerdevice';
 import { FeatureHelper } from './feature/featurehelper';
 import { RazerDeviceType } from './device/razerdevicetype';
+import { guard } from './guard';
 
 /**
  * Responsible to fetch all attached Razer devices and map them to RazerDevice instances with features
@@ -19,25 +20,36 @@ export class RazerDeviceManager {
     this.addon = addon;
     this.settingsManager = settingsManager;
     this.razerConfigDevices = this.getAllRazerDeviceConfigurations();
-    this.activeRazerDevices = null;
+    this.activeRazerDevices = [];
+    this.lastRefresh = 0;
+    this.refreshing = Promise.resolve(false);
   }
 
   // Resolves true once the device list has been rebuilt, false when throttled.
   // force skips the throttle: a replugged device must be picked up even right after a refresh.
-  async refreshRazerDevices(force = false) {
-    if(!force && new Date().getTime() < this.lastRefresh + 2000) {
-      /// Refresh is called too fast. Wait a bit...
+  // One rebuild runs at a time; overlapping ones would fight over the open devices.
+  refreshRazerDevices(force = false) {
+    const rebuild = () => this.rebuild(force);
+    this.refreshing = this.refreshing.then(rebuild, rebuild);
+    return this.refreshing;
+  }
+
+  async rebuild(force) {
+    if (!force && Date.now() < this.lastRefresh + 2000) {
       return false;
     }
-    this.lastRefresh = new Date().getTime();
-    this.closeDevices();
+    this.lastRefresh = Date.now();
+    // The scan below closes every open device, so nothing may write to the old list.
+    this.activeRazerDevices.forEach(device => guard(`Stopping ${device.name}`, () => device.destroy()));
+    this.activeRazerDevices = [];
 
-    const devicePromises = this.addon.getAllDevices().map(async foundDevice => {
+    const devices = await Promise.all(this.addon.getAllDevices().map(async foundDevice => {
       const configurationDevice = this.razerConfigDevices.find(d => d.productId === foundDevice.productId);
       if (configurationDevice === undefined) {
+        console.log(`Devices: no device file for product 0x${foundDevice.productId.toString(16).padStart(4, '0')}`);
         return null;
       }
-      const razerProperties = {
+      const razerDevice = this.createRazerDeviceFrom({
         name: configurationDevice.name,
         productId: foundDevice.productId,
         internalId: foundDevice.internalDeviceId,
@@ -46,17 +58,23 @@ export class RazerDeviceManager {
         features: configurationDevice.features,
         featuresMissing: configurationDevice.featuresMissing,
         featuresConfig: configurationDevice.featuresConfig,
-      };
-      const razerDevice = this.createRazerDeviceFrom(razerProperties);
-      return razerDevice.init();
-    });
+      });
+      try {
+        return await razerDevice.init();
+      } catch (error) {
+        console.warn(`Devices: ${razerDevice.name} could not be set up:`, error?.message ?? error);
+        return null;
+      }
+    }));
 
-    return Promise.all(devicePromises).then(devices => {
-      return devices.filter(device => device !== null);
-    }).then((devices) => {
-      this.activeRazerDevices = this.sortDevices(devices);
-      return true;
-    });
+    this.activeRazerDevices = this.sortDevices(devices.filter(device => device !== null));
+    console.log(`Devices: ${this.activeRazerDevices.map(device => device.name).join(', ') || 'none'}`);
+    return true;
+  }
+
+  // Runs `action` on every device; one that fails is logged and skipped.
+  forEachDevice(action) {
+    this.activeRazerDevices.forEach(device => guard(device.name, () => action(device)));
   }
 
   sortDevices(devices) {
@@ -169,26 +187,23 @@ export class RazerDeviceManager {
     });
   }
 
-  getByInternalId(internalId) {
-    return this.activeRazerDevices.find(device => device.internalId === internalId);
-  }
-
-  closeDevices() {
-    if (this.activeRazerDevices !== null) {
-      this.addon.closeAllDevices();
-      this.activeRazerDevices = null;
+  /**
+   * The live device for one the settings window or an old menu still holds.
+   * IDs change on every rebuild, so fall back to the same product, which is the
+   * same physical device unless two identical ones are attached.
+   */
+  resolve(device) {
+    if (device == null) {
+      return undefined;
     }
+    return this.activeRazerDevices.find(active => active.internalId === device.internalId)
+      ?? this.activeRazerDevices.find(active => active.productId === device.productId);
   }
 
   destroy() {
-    if(this.activeRazerDevices != null) {
-      this.activeRazerDevices.forEach(device => {
-        if (device !== null) {
-          device.destroy();
-        }
-      });
-    }
-    this.closeDevices();
+    this.activeRazerDevices.forEach(device => guard(`Stopping ${device.name}`, () => device.destroy()));
+    this.activeRazerDevices = [];
+    this.addon.closeAllDevices();
     this.addon = null;
   }
 }

@@ -21,9 +21,18 @@ export class RazerDevice {
   }
 
   async init() {
+    try {
+      this.readState();
+    } catch (error) {
+      // Still usable: the menu shows defaults until the next refresh reads it.
+      console.warn(`${this.name}: could not read its state:`, error?.message ?? error);
+    }
     this.settings = await this.settingsManager.getSettingsFor(this);
     return this;
   }
+
+  // Reads what the device reports (brightness, DPI, battery). Override in device types.
+  readState() {}
 
   getSettingsKey() {
     return 'razer_'+this.productId;
@@ -38,8 +47,10 @@ export class RazerDevice {
   refresh() {
   }
 
+  // This device's handle is about to close: stop everything that would still write to it.
   destroy() {
-    this.addon = null;
+    clearInterval(this.batteryLevelInterval);
+    this.batteryLevelInterval = null;
   }
 
   async setSettings(settings) {

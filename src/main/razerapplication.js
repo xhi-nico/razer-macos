@@ -38,12 +38,14 @@ export class RazerApplication {
   }
 
   destroy() {
+    console.log('Quitting');
     this.lights.sleepNow();
     this.deviceManager.destroy();
   }
 
   stopAnimations() {
-    this.cycleAnimation.stop();
-    this.spectrumAnimation.stop();
+    // Null until the first device refresh has built them.
+    this.cycleAnimation?.stop();
+    this.spectrumAnimation?.stop();
   }
 }

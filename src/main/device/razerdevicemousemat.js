@@ -1,9 +1,8 @@
 import { RazerDevice } from './razerdevice';
 
 export class RazerDeviceMouseMat extends RazerDevice {
-  async init() {
+  readState() {
     this.brightness = this.addon.mouseMatGetBrightness(this.internalId);
-    return super.init();
   }
 
   setModeNone() {

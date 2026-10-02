@@ -1,4 +1,5 @@
 import { getDeviceMenuFor, takesOverLights } from './menubuilderdevice';
+import { guard } from '../guard';
 
 export function getMenuFor(application) {
   const fullMenu = getMainMenu(application)
@@ -11,14 +12,18 @@ export function getMenuFor(application) {
   return fullMenu;
 }
 
+// Every click is guarded, so a device that fails mid-click is logged rather than
+// thrown. Any click but a checkbox's also stops the running animation first.
 function patch(deviceMenu, application) {
   deviceMenu.forEach(menuItem => {
     if (menuItem.hasOwnProperty('click')) {
       const originalClick = menuItem['click'];
-      menuItem['click'] = (ev) => {
-        application.razerApplication.stopAnimations();
-        originalClick(ev);
-      };
+      menuItem['click'] = (...args) => guard(`Menu "${menuItem.label}"`, () => {
+        if (menuItem.type !== 'checkbox') {
+          application.razerApplication.stopAnimations();
+        }
+        originalClick(...args);
+      });
     } else if (menuItem.hasOwnProperty('submenu')) {
       patch(menuItem['submenu'], application);
     }
@@ -36,6 +41,15 @@ function getMainMenu(application) {
         application.setAutoLights(menuItem.checked);
       },
     },
+    // Only the packaged app: in development this would register the bare Electron binary.
+    ...(application.app.isPackaged ? [{
+      label: 'Open at Login',
+      type: 'checkbox',
+      checked: application.openAtLogin,
+      click(menuItem) {
+        application.openAtLogin = menuItem.checked;
+      },
+    }] : []),
     { type: 'separator' },
     {
       label: 'Refresh Device List',
@@ -71,7 +85,7 @@ function getAllDevicesMenu(application) {
     {
       label: 'None',
       click() {
-        application.razerApplication.deviceManager.activeRazerDevices.forEach(device => {
+        application.razerApplication.deviceManager.forEachDevice(device => {
           device.setModeNone();
         });
       },
@@ -82,7 +96,7 @@ function getAllDevicesMenu(application) {
         {
           label: 'Custom',
           click() {
-            application.razerApplication.deviceManager.activeRazerDevices.forEach(device => {
+            application.razerApplication.deviceManager.forEachDevice(device => {
               device.setModeStatic(Object.values(device.settings.customColor1.rgb).slice(0,3));
             });
           },
@@ -90,7 +104,7 @@ function getAllDevicesMenu(application) {
         {
           label: 'Red',
           click() {
-            application.razerApplication.deviceManager.activeRazerDevices.forEach(device => {
+            application.razerApplication.deviceManager.forEachDevice(device => {
               device.setModeStatic([0xff, 0, 0]);
             });
           },
@@ -98,7 +112,7 @@ function getAllDevicesMenu(application) {
         {
           label: 'Green',
           click() {
-            application.razerApplication.deviceManager.activeRazerDevices.forEach(device => {
+            application.razerApplication.deviceManager.forEachDevice(device => {
               device.setModeStatic([0, 0xff, 0]);
             });
           },
@@ -106,7 +120,7 @@ function getAllDevicesMenu(application) {
         {
           label: 'Blue',
           click() {
-            application.razerApplication.deviceManager.activeRazerDevices.forEach(device => {
+            application.razerApplication.deviceManager.forEachDevice(device => {
               device.setModeStatic([0, 0, 0xff]);
             });
           },
@@ -120,7 +134,7 @@ function getAllDevicesMenu(application) {
           label: 'By device',
           toolTip: 'Runs spectrum mode for all attached devices',
           click() {
-            application.razerApplication.deviceManager.activeRazerDevices.forEach(device => {
+            application.razerApplication.deviceManager.forEachDevice(device => {
               device.setSpectrum();
             });
           }
@@ -205,6 +219,12 @@ function getMainMenuBottom(application) {
         {
           label: `Version: ${application.APP_VERSION}`,
           enabled: false,
+        },
+        {
+          label: 'Open Log',
+          click() {
+            application.openLog();
+          },
         },
       ],
     },

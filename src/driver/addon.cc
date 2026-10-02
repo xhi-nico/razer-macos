@@ -1,6 +1,8 @@
 #include <napi.h>
 #include <iostream>
 #include <iomanip>
+#include <string>
+#include <type_traits>
 
 #include "macsignals.h"
 #include "calendar.h"
@@ -17,22 +19,56 @@ extern "C"
 #include "razercommon.h"
 }
 
-RazerDevices devices;
+// The devices open right now. Empty (NULL, 0) whenever none are, never dangling.
+RazerDevices devices = {NULL, 0};
+
+// Each scan numbers its devices from here on, so an ID from an earlier scan
+// never names a device from a later one; it is refused instead (see getRazerDeviceFor).
+static int nextDeviceId = 1;
+
+/**
+ * The open device an ID names. An unknown ID (a device from before the last
+ * scan, or after its close) throws, rather than handing the driver a NULL
+ * handle it would crash on.
+ */
+RazerDevice getRazerDeviceFor(const Napi::CallbackInfo &info) {
+    int internalDeviceId = info[0].ToNumber().Int32Value();
+    for (int counter = 0; counter < devices.size; ++counter) {
+        if (devices.devices[counter].internalDeviceId == internalDeviceId && devices.devices[counter].usbDevice != NULL) {
+            return devices.devices[counter];
+        }
+    }
+    throw Napi::Error::New(info.Env(), "Razer device " + std::to_string(internalDeviceId) + " is not open");
+}
+
+/**
+ * Wraps a device function so a USB failure inside it (device gone, stalled,
+ * timed out) throws, instead of passing silently as the driver would.
+ */
+template <auto Fn>
+Napi::Value Guarded(const Napi::CallbackInfo &info) {
+    Napi::Env env = info.Env();
+    razer_take_usb_error();
+    Napi::Value result = env.Undefined();
+    if constexpr (std::is_void_v<decltype(Fn(info))>) {
+        Fn(info);
+    } else {
+        result = Fn(info);
+    }
+    IOReturn error = razer_take_usb_error();
+    if (error != kIOReturnSuccess && !env.IsExceptionPending()) {
+        char code[16];
+        snprintf(code, sizeof(code), "%08x", error);
+        Napi::Error failure = Napi::Error::New(env, std::string("USB request failed: ") + code);
+        failure.Set("usbError", Napi::Number::New(env, error));
+        throw failure;
+    }
+    return result;
+}
 
 /**
 * Keyboard functions
 */
-
-RazerDevice getRazerDeviceFor(const Napi::CallbackInfo &info) {
-    Napi::Number internalId = info[0].ToNumber();
-    int internalDeviceId = internalId.Int32Value();
-    for (int counter = 0; counter < devices.size; ++counter) {
-        if (devices.devices[counter].internalDeviceId == internalDeviceId) {
-            return devices.devices[counter];
-        }
-    }
-    return {};
-}
 
 void KbdSetModeNone(const Napi::CallbackInfo &info) {
     RazerDevice device = getRazerDeviceFor(info);
@@ -881,9 +917,21 @@ Napi::Number MouseMatGetBrightness(const Napi::CallbackInfo &info) {
 /**
 * Get all razer devices
 */
+void closeDevices() {
+    if (devices.devices != NULL) {
+        closeAllRazerDevices(devices);
+    }
+    devices = {NULL, 0};
+}
+
+// Rescans, closing whatever is open first: a device left open cannot be opened again.
 Napi::Array GetAllDevices(const Napi::CallbackInfo &info) {
     Napi::Env env = info.Env();
+    closeDevices();
     devices = getAllRazerDevices();
+    for (int counter = 0; counter < devices.size; ++counter) {
+        devices.devices[counter].internalDeviceId = nextDeviceId++;
+    }
 
     Napi::Array razerDevices = Napi::Array::New(env, devices.size);
 
@@ -903,94 +951,94 @@ void SetSkipResponses(const Napi::CallbackInfo &info) {
 }
 
 void CloseAllDevices(const Napi::CallbackInfo &info) {
-    closeAllRazerDevices(devices);
+    closeDevices();
 }
 
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
 
-    exports.Set("kbdSetModeNone", Napi::Function::New(env, KbdSetModeNone));
-    exports.Set("kbdSetModeSpectrum", Napi::Function::New(env, KbdSetModeSpectrum));
-    exports.Set("kbdSetModeStatic", Napi::Function::New(env, KbdSetModeStatic));
-    exports.Set("kbdSetModeStaticNoStore", Napi::Function::New(env, KbdSetModeStaticNoStore));
-    exports.Set("kbdSetModeWave", Napi::Function::New(env, KbdSetModeWave));
-    exports.Set("kbdSetModeReactive", Napi::Function::New(env, KbdSetModeReactive));
-    exports.Set("kbdSetModeBreathe", Napi::Function::New(env, KbdSetModeBreathe));
-    exports.Set("KbdGetBrightness", Napi::Function::New(env, KbdGetBrightness));
-    exports.Set("KbdSetBrightness", Napi::Function::New(env, KbdSetBrightness));
-    exports.Set("kbdSetModeStarlight", Napi::Function::New(env, KbdSetModeStarlight));
-    exports.Set("kbdSetModeCustom", Napi::Function::New(env, KbdSetModeCustom));
-    exports.Set("kbdSetCustomFrame", Napi::Function::New(env, KbdSetCustomFrame));
+    exports.Set("kbdSetModeNone", Napi::Function::New(env, Guarded<KbdSetModeNone>));
+    exports.Set("kbdSetModeSpectrum", Napi::Function::New(env, Guarded<KbdSetModeSpectrum>));
+    exports.Set("kbdSetModeStatic", Napi::Function::New(env, Guarded<KbdSetModeStatic>));
+    exports.Set("kbdSetModeStaticNoStore", Napi::Function::New(env, Guarded<KbdSetModeStaticNoStore>));
+    exports.Set("kbdSetModeWave", Napi::Function::New(env, Guarded<KbdSetModeWave>));
+    exports.Set("kbdSetModeReactive", Napi::Function::New(env, Guarded<KbdSetModeReactive>));
+    exports.Set("kbdSetModeBreathe", Napi::Function::New(env, Guarded<KbdSetModeBreathe>));
+    exports.Set("KbdGetBrightness", Napi::Function::New(env, Guarded<KbdGetBrightness>));
+    exports.Set("KbdSetBrightness", Napi::Function::New(env, Guarded<KbdSetBrightness>));
+    exports.Set("kbdSetModeStarlight", Napi::Function::New(env, Guarded<KbdSetModeStarlight>));
+    exports.Set("kbdSetModeCustom", Napi::Function::New(env, Guarded<KbdSetModeCustom>));
+    exports.Set("kbdSetCustomFrame", Napi::Function::New(env, Guarded<KbdSetCustomFrame>));
 
-    exports.Set("getBatteryLevel", Napi::Function::New(env, GetMousebatteryLevel));
-    exports.Set("getChargingStatus", Napi::Function::New(env, GetIsMouseCharging));
-    exports.Set("mouseSetLogoModeWave", Napi::Function::New(env, MouseSetLogoModeWave));
-    exports.Set("mouseSetLogoModeStatic", Napi::Function::New(env, MouseSetLogoModeStatic));
-    exports.Set("mouseSetLogoModeStaticNoStore", Napi::Function::New(env, MouseSetLogoModeStaticNoStore));
-    exports.Set("mouseSetLogoModeSpectrum", Napi::Function::New(env, MouseSetLogoModeSpectrum));
-    exports.Set("mouseSetLogoModeReactive", Napi::Function::New(env, MouseSetLogoModeReactive));
-    exports.Set("mouseSetLogoModeBreathe", Napi::Function::New(env, MouseSetLogoModeBreathe));
-    exports.Set("mouseSetLogoModeNone", Napi::Function::New(env, MouseSetLogoModeNone));
+    exports.Set("getBatteryLevel", Napi::Function::New(env, Guarded<GetMousebatteryLevel>));
+    exports.Set("getChargingStatus", Napi::Function::New(env, Guarded<GetIsMouseCharging>));
+    exports.Set("mouseSetLogoModeWave", Napi::Function::New(env, Guarded<MouseSetLogoModeWave>));
+    exports.Set("mouseSetLogoModeStatic", Napi::Function::New(env, Guarded<MouseSetLogoModeStatic>));
+    exports.Set("mouseSetLogoModeStaticNoStore", Napi::Function::New(env, Guarded<MouseSetLogoModeStaticNoStore>));
+    exports.Set("mouseSetLogoModeSpectrum", Napi::Function::New(env, Guarded<MouseSetLogoModeSpectrum>));
+    exports.Set("mouseSetLogoModeReactive", Napi::Function::New(env, Guarded<MouseSetLogoModeReactive>));
+    exports.Set("mouseSetLogoModeBreathe", Napi::Function::New(env, Guarded<MouseSetLogoModeBreathe>));
+    exports.Set("mouseSetLogoModeNone", Napi::Function::New(env, Guarded<MouseSetLogoModeNone>));
 
-    exports.Set("mouseGetDpi", Napi::Function::New(env, MouseGetDpi));
-    exports.Set("mouseSetDpi", Napi::Function::New(env, MouseSetDpi));
+    exports.Set("mouseGetDpi", Napi::Function::New(env, Guarded<MouseGetDpi>));
+    exports.Set("mouseSetDpi", Napi::Function::New(env, Guarded<MouseSetDpi>));
 
-    exports.Set("mouseGetPollRate", Napi::Function::New(env, MouseGetPollRate));
-    exports.Set("mouseSetPollRate", Napi::Function::New(env, MouseSetPollRate));
+    exports.Set("mouseGetPollRate", Napi::Function::New(env, Guarded<MouseGetPollRate>));
+    exports.Set("mouseSetPollRate", Napi::Function::New(env, Guarded<MouseSetPollRate>));
 
-    exports.Set("mouseGetBrightness", Napi::Function::New(env, MouseGetBrightness));
-    exports.Set("mouseSetBrightness", Napi::Function::New(env, MouseSetBrightness));
-    exports.Set("mouseGetScrollBrightness", Napi::Function::New(env, MouseGetScrollBrightness));
-    exports.Set("mouseSetScrollBrightness", Napi::Function::New(env, MouseSetScrollBrightness));
-    exports.Set("mouseGetLogoBrightness", Napi::Function::New(env, MouseGetLogoBrightness));
-    exports.Set("mouseSetLogoBrightness", Napi::Function::New(env, MouseSetLogoBrightness));
-    exports.Set("mouseGetLeftBrightness", Napi::Function::New(env, MouseGetLeftBrightness));
-    exports.Set("mouseSetLeftBrightness", Napi::Function::New(env, MouseSetLeftBrightness));
-    exports.Set("mouseGetRightBrightness", Napi::Function::New(env, MouseGetRightBrightness));
-    exports.Set("mouseSetRightBrightness", Napi::Function::New(env, MouseSetRightBrightness));
+    exports.Set("mouseGetBrightness", Napi::Function::New(env, Guarded<MouseGetBrightness>));
+    exports.Set("mouseSetBrightness", Napi::Function::New(env, Guarded<MouseSetBrightness>));
+    exports.Set("mouseGetScrollBrightness", Napi::Function::New(env, Guarded<MouseGetScrollBrightness>));
+    exports.Set("mouseSetScrollBrightness", Napi::Function::New(env, Guarded<MouseSetScrollBrightness>));
+    exports.Set("mouseGetLogoBrightness", Napi::Function::New(env, Guarded<MouseGetLogoBrightness>));
+    exports.Set("mouseSetLogoBrightness", Napi::Function::New(env, Guarded<MouseSetLogoBrightness>));
+    exports.Set("mouseGetLeftBrightness", Napi::Function::New(env, Guarded<MouseGetLeftBrightness>));
+    exports.Set("mouseSetLeftBrightness", Napi::Function::New(env, Guarded<MouseSetLeftBrightness>));
+    exports.Set("mouseGetRightBrightness", Napi::Function::New(env, Guarded<MouseGetRightBrightness>));
+    exports.Set("mouseSetRightBrightness", Napi::Function::New(env, Guarded<MouseSetRightBrightness>));
 
-    exports.Set("mouseDockSetModeNone", Napi::Function::New(env, MouseDockSetModeNone));
-    exports.Set("mouseDockSetModeBreathe", Napi::Function::New(env, MouseDockSetModeBreathe));
-    exports.Set("mouseDockSetModeStatic", Napi::Function::New(env, MouseDockSetModeStatic));
-    exports.Set("mouseDockSetModeStaticNoStore", Napi::Function::New(env, MouseDockSetModeStaticNoStore));
-    exports.Set("mouseDockSetModeSpectrum", Napi::Function::New(env, MouseDockSetModeSpectrum));
+    exports.Set("mouseDockSetModeNone", Napi::Function::New(env, Guarded<MouseDockSetModeNone>));
+    exports.Set("mouseDockSetModeBreathe", Napi::Function::New(env, Guarded<MouseDockSetModeBreathe>));
+    exports.Set("mouseDockSetModeStatic", Napi::Function::New(env, Guarded<MouseDockSetModeStatic>));
+    exports.Set("mouseDockSetModeStaticNoStore", Napi::Function::New(env, Guarded<MouseDockSetModeStaticNoStore>));
+    exports.Set("mouseDockSetModeSpectrum", Napi::Function::New(env, Guarded<MouseDockSetModeSpectrum>));
 
-    exports.Set("mouseMatSetModeNone", Napi::Function::New(env, MouseMatSetModeNone));
-    exports.Set("mouseMatSetModeWave", Napi::Function::New(env, MouseMatSetModeWave));
-    exports.Set("mouseMatSetModeBreathe", Napi::Function::New(env, MouseMatSetModeBreathe));
-    exports.Set("mouseMatSetModeStatic", Napi::Function::New(env, MouseMatSetModeStatic));
-    exports.Set("mouseMatSetModeStaticNoStore", Napi::Function::New(env, MouseMatSetModeStaticNoStore));
-    exports.Set("mouseMatSetModeSpectrum", Napi::Function::New(env, MouseMatSetModeSpectrum));
-    exports.Set("mouseMatSetBrightness", Napi::Function::New(env, MouseMatSetBrightness));
-    exports.Set("mouseMatGetBrightness", Napi::Function::New(env, MouseMatGetBrightness));
+    exports.Set("mouseMatSetModeNone", Napi::Function::New(env, Guarded<MouseMatSetModeNone>));
+    exports.Set("mouseMatSetModeWave", Napi::Function::New(env, Guarded<MouseMatSetModeWave>));
+    exports.Set("mouseMatSetModeBreathe", Napi::Function::New(env, Guarded<MouseMatSetModeBreathe>));
+    exports.Set("mouseMatSetModeStatic", Napi::Function::New(env, Guarded<MouseMatSetModeStatic>));
+    exports.Set("mouseMatSetModeStaticNoStore", Napi::Function::New(env, Guarded<MouseMatSetModeStaticNoStore>));
+    exports.Set("mouseMatSetModeSpectrum", Napi::Function::New(env, Guarded<MouseMatSetModeSpectrum>));
+    exports.Set("mouseMatSetBrightness", Napi::Function::New(env, Guarded<MouseMatSetBrightness>));
+    exports.Set("mouseMatGetBrightness", Napi::Function::New(env, Guarded<MouseMatGetBrightness>));
 
     // Older mouse functions
-    exports.Set("mouseSetLogoLEDEffect", Napi::Function::New(env, MouseSetLogoLEDEffect));
-    exports.Set("mouseSetLogoLEDRGB", Napi::Function::New(env, MouseSetLogoLEDRGB));
+    exports.Set("mouseSetLogoLEDEffect", Napi::Function::New(env, Guarded<MouseSetLogoLEDEffect>));
+    exports.Set("mouseSetLogoLEDRGB", Napi::Function::New(env, Guarded<MouseSetLogoLEDRGB>));
 
     // Egpu
-    exports.Set("egpuSetModeNone", Napi::Function::New(env, EgpuSetModeNone));
-    exports.Set("egpuSetModeBreathe", Napi::Function::New(env, EgpuSetModeBreathe));
-    exports.Set("egpuSetModeStatic", Napi::Function::New(env, EgpuSetModeStatic));
-    exports.Set("egpuSetModeStaticNoStore", Napi::Function::New(env, EgpuSetModeStaticNoStore));
-    exports.Set("egpuSetModeWave", Napi::Function::New(env, EgpuSetModeWave));
-    exports.Set("egpuSetModeSpectrum", Napi::Function::New(env, EgpuSetModeSpectrum));
+    exports.Set("egpuSetModeNone", Napi::Function::New(env, Guarded<EgpuSetModeNone>));
+    exports.Set("egpuSetModeBreathe", Napi::Function::New(env, Guarded<EgpuSetModeBreathe>));
+    exports.Set("egpuSetModeStatic", Napi::Function::New(env, Guarded<EgpuSetModeStatic>));
+    exports.Set("egpuSetModeStaticNoStore", Napi::Function::New(env, Guarded<EgpuSetModeStaticNoStore>));
+    exports.Set("egpuSetModeWave", Napi::Function::New(env, Guarded<EgpuSetModeWave>));
+    exports.Set("egpuSetModeSpectrum", Napi::Function::New(env, Guarded<EgpuSetModeSpectrum>));
 
     // Headphones
-    exports.Set("headphoneSetModeNone", Napi::Function::New(env, HeadphoneSetModeNone));
-    exports.Set("headphoneSetModeBreathe", Napi::Function::New(env, HeadphoneSetModeBreathe));
-    exports.Set("headphoneSetModeStatic", Napi::Function::New(env, HeadphoneSetModeStatic));
-    exports.Set("headphoneSetModeStaticNoStore", Napi::Function::New(env, HeadphoneSetModeStaticNoStore));
-    exports.Set("headphoneSetModeSpectrum", Napi::Function::New(env, HeadphoneSetModeSpectrum));
+    exports.Set("headphoneSetModeNone", Napi::Function::New(env, Guarded<HeadphoneSetModeNone>));
+    exports.Set("headphoneSetModeBreathe", Napi::Function::New(env, Guarded<HeadphoneSetModeBreathe>));
+    exports.Set("headphoneSetModeStatic", Napi::Function::New(env, Guarded<HeadphoneSetModeStatic>));
+    exports.Set("headphoneSetModeStaticNoStore", Napi::Function::New(env, Guarded<HeadphoneSetModeStaticNoStore>));
+    exports.Set("headphoneSetModeSpectrum", Napi::Function::New(env, Guarded<HeadphoneSetModeSpectrum>));
 
     // Accessory
-    exports.Set("accessorySetModeNone", Napi::Function::New(env, AccessorySetModeNone));
-    exports.Set("accessorySetModeSpectrum", Napi::Function::New(env, AccessorySetModeSpectrum));
-    exports.Set("accessorySetModeStatic", Napi::Function::New(env, AccessorySetModeStatic));
-    exports.Set("accessorySetModeStaticNoStore", Napi::Function::New(env, AccessorySetModeStaticNoStore));
-    exports.Set("accessorySetModeWave", Napi::Function::New(env, AccessorySetModeWave));
-    exports.Set("accessorySetModeBreathe", Napi::Function::New(env, AccessorySetModeBreathe));
-    exports.Set("accessoryGetBrightness", Napi::Function::New(env, AccessoryGetBrightness));
-    exports.Set("accessorySetBrightness", Napi::Function::New(env, AccessorySetBrightness));
+    exports.Set("accessorySetModeNone", Napi::Function::New(env, Guarded<AccessorySetModeNone>));
+    exports.Set("accessorySetModeSpectrum", Napi::Function::New(env, Guarded<AccessorySetModeSpectrum>));
+    exports.Set("accessorySetModeStatic", Napi::Function::New(env, Guarded<AccessorySetModeStatic>));
+    exports.Set("accessorySetModeStaticNoStore", Napi::Function::New(env, Guarded<AccessorySetModeStaticNoStore>));
+    exports.Set("accessorySetModeWave", Napi::Function::New(env, Guarded<AccessorySetModeWave>));
+    exports.Set("accessorySetModeBreathe", Napi::Function::New(env, Guarded<AccessorySetModeBreathe>));
+    exports.Set("accessoryGetBrightness", Napi::Function::New(env, Guarded<AccessoryGetBrightness>));
+    exports.Set("accessorySetBrightness", Napi::Function::New(env, Guarded<AccessorySetBrightness>));
 
     // All devices
     exports.Set("getAllDevices", Napi::Function::New(env, GetAllDevices));

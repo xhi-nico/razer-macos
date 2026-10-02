@@ -124,53 +124,33 @@ constructor(device, featureConfiguration, color, backgroundColor = [0, 0, 0]) {
   }
 
   start() {
-    this.ioHook.start();
-
-    const refreshRate = 0.05; // in seconds
+    const frameMs = 50;
     const eventDuration = 1; // in seconds
     const speed = 20; // number of keys per second
     const width = 2; // number of keys
 
-    // initialization
-    let matrix = Array(this.nRows)
-      .fill()
-      .map(() => Array(this.nCols).fill(this.backgroundColor));
-    for (let i = 0; i < this.nRows; i++) {
-      let row = [i, 0, this.nCols - 1, ...matrix[i].flat()];
-      this.device.setCustomFrame(new Uint8Array(row))
-    }
-    this.device.setModeCustom();
+    const blank = () => Array.from({ length: this.nRows }, () => Array(this.nCols).fill(this.backgroundColor));
     let keyEvents = [];
 
-    // keyboard listener
-    this.ioHook.on('keydown', (event) => {
+    // The key hook is shared and outlives this animation, so the listener is removed in stop().
+    this.onKeyDown = event => {
       if (!(event.keycode in this.KEY_MAPPING)) return;
-      const rowIdx = this.KEY_MAPPING[event.keycode][0];
-      const colIdx = this.KEY_MAPPING[event.keycode][1];
+      const [rowIdx, colIdx] = this.KEY_MAPPING[event.keycode];
+      keyEvents.push({ rowIdx, colIdx, startTime: Date.now() / 1000 });
+    };
+    this.ioHook.on('keydown', this.onKeyDown);
+    this.ioHook.start();
 
-      keyEvents.push({
-        rowIdx,
-        colIdx,
-        startTime: Date.now() / 1000,
-      });
-    });
-
+    this.show(blank());
     this.rippleEffectInterval = setInterval(() => {
-      keyEvents = keyEvents.filter((event) => event.startTime + eventDuration > Date.now() / 1000);
-
-      // clear keyboard
-      matrix = Array(this.nRows)
-        .fill()
-        .map(() => Array(this.nCols).fill(this.backgroundColor));
-
-      // set color
+      const now = Date.now() / 1000;
+      keyEvents = keyEvents.filter(event => event.startTime + eventDuration > now);
+      const matrix = blank();
       for (let i = 0; i < this.nRows; i++) {
         for (let j = 0; j < this.nCols; j++) {
-          for (let event of keyEvents) {
-            const radius = (Date.now() / 1000 - event.startTime) * speed;
-            const distance = Math.sqrt(
-              Math.pow(event.rowIdx - i, 2) + Math.pow(event.colIdx - j, 2),
-            );
+          for (const event of keyEvents) {
+            const radius = (now - event.startTime) * speed;
+            const distance = Math.hypot(event.rowIdx - i, event.colIdx - j);
             if (radius - width <= distance && distance <= radius) {
               matrix[i][j] = this.color;
               break;
@@ -178,19 +158,27 @@ constructor(device, featureConfiguration, color, backgroundColor = [0, 0, 0]) {
           }
         }
       }
+      this.show(matrix);
+    }, frameMs);
+  }
 
-      // set ripple effect
-      for (let i = 0; i < this.nRows; i++) {
-        let row = [i, 0, this.nCols - 1, ...matrix[i].flat()];
-        this.device.setCustomFrame(new Uint8Array(row));
-      }
-      this.device.setModeCustom();
-    }, refreshRate);
+  show(matrix) {
+    try {
+      this.device.setCustomFrames(matrix);
+    } catch (error) {
+      console.warn(`Ripple: ${this.device.name} stopped answering, so the ripple stops:`, error?.message ?? error);
+      this.stop();
+    }
   }
 
   stop() {
-    clearTimeout(this.rippleEffectInterval);
-    this.ioHook.stop();
+    clearInterval(this.rippleEffectInterval);
+    this.rippleEffectInterval = null;
+    if (this.onKeyDown) {
+      this.ioHook.off('keydown', this.onKeyDown);
+      this.onKeyDown = null;
+      this.ioHook.stop();
+    }
   }
 
   destroy() {

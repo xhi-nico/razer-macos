@@ -16,7 +16,7 @@ export class SettingsManager {
     return new Promise((res, rej) => {
       storage.has(key, (error, hasKey) => {
         if (error) {
-          rej(error);
+          return rej(error);
         }
         res(hasKey);
       });
@@ -27,7 +27,7 @@ export class SettingsManager {
     return new Promise((res, rej) => {
       storage.set(key, value, (err) => {
         if (err) {
-          rej(err);
+          return rej(err);
         }
         res();
       });
@@ -47,7 +47,7 @@ export class SettingsManager {
     return new Promise((res, rej) => {
       storage.get(key, (err, data) => {
         if (err) {
-          rej(err);
+          return rej(err);
         }
         res(data);
       });
@@ -58,7 +58,7 @@ export class SettingsManager {
     return new Promise((res, rej) => {
       storage.clear((err) => {
         if (err) {
-          rej(err);
+          return rej(err);
         }
         res();
       });
