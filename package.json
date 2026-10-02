@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
+    "test": "vitest run",
     "dist": "yarn build && electron-builder",
     "dist:dir": "yarn dist --dir -c.compression=store -c.mac.identity=null",
     "rebuild": "node-gyp rebuild",
@@ -37,6 +38,10 @@
     "node-gyp": "^11.4.2",
     "prettier": "^3.6.2",
     "prop-types": "^15.8.1",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  },
+  "resolutions": {
     "vite": "^8.2.2"
   },
   "gypfile": true,
