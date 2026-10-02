@@ -17,7 +17,7 @@ export class BatteryWatch {
   constructor(lights, getDevices) {
     this.lights = lights;
     this.getDevices = getDevices;
-    this.low = new Map(); // layer id -> percent when last read
+    this.low = new Set(); // layer ids of the mice shown low
   }
 
   start() {
@@ -30,25 +30,22 @@ export class BatteryWatch {
   }
 
   check() {
-    const low = new Map();
+    const low = new Set();
     (this.getDevices() || [])
       .filter(device => device.mainType === RazerDeviceType.MOUSE && device.hasFeature(FeatureIdentifier.BATTERY))
       .forEach(device => guard(`Battery of ${device.name}`, () => {
         const id = `battery:${device.productId}`;
         device.refresh();
-        if (device.batteryLevel < 0) {
-          if (this.low.has(id)) {
-            low.set(id, this.low.get(id));
-          }
-        } else if (device.batteryLevel < LOW_PERCENT && !device.chargingStatus) {
-          low.set(id, device.batteryLevel);
-          if (!this.low.has(id)) {
+        const unknown = device.batteryLevel < 0;
+        if (unknown ? this.low.has(id) : device.batteryLevel < LOW_PERCENT && !device.chargingStatus) {
+          low.add(id);
+          if (!unknown && !this.low.has(id)) {
             console.log(`Battery: ${device.name} is low (${device.batteryLevel}%)`);
           }
         }
       }));
-    low.forEach((_, id) => this.lights.show({ id, ...LOW }));
-    this.low.forEach((_, id) => {
+    low.forEach(id => this.lights.show({ id, ...LOW }));
+    this.low.forEach(id => {
       if (!low.has(id)) {
         this.lights.cancel(id);
       }

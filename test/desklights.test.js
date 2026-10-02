@@ -4,8 +4,8 @@ vi.mock('electron', () => ({
   systemPreferences: { getMediaAccessStatus: () => 'granted', askForMediaAccess: async () => true },
 }));
 
-import { DeskLights } from '../src/main/desklights';
-import { ATTENTION } from '../src/main/lightsapi';
+import { DeskLights, ATTENTION } from '../src/main/desklights';
+
 import { fakeDesk, fakeSettings, fakeAddon, noDaylight, macState, RED, WHITE } from './fakes';
 
 const START = new Date('2026-06-21T12:00:00').getTime();

@@ -69,11 +69,11 @@ describe('LightLayers updates', () => {
     const layers = new LightLayers();
     layers.show({ id: 'a', color: [200, 0, 0], duration: 60 }, 0);
     layers.show({ id: 'a', color: [200, 0, 0], duration: 60 }, 1000);
-    expect(layers.animating(1000)).toBe(false);
+    expect(layers.pace(1000)).toBeNull();
     layers.show({ id: 'a', color: [0, 0, 200], duration: 60 }, 2000);
     expect(shown(2250)(layers)).toEqual([100, 0, 100]);
     expect(shown(2500)(layers)).toEqual([0, 0, 200]);
-    expect(layers.animating(2600)).toBe(false);
+    expect(layers.pace(2600)).toBeNull();
   });
 });
 

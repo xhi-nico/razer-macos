@@ -24,10 +24,6 @@ export class RazerAnimationCycleCustom extends RazerAnimationCycle {
     return this.cycleColors;
   }
 
-  getColor(index) {
-    return this.cycleColors[index];
-  }
-
   updateColor(index, color) {
     this.cycleColors[index] = color;
     return this.saveSettings();

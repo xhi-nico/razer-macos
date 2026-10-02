@@ -1,20 +1,9 @@
 import http from 'http';
-import { LayerError, CALL_PRIORITY } from './lightlayers';
+import { LayerError } from './lightlayers';
 
 // Only this Mac can reach it; see README, "Local lights API".
 export const LIGHTS_PORT = 47820;
 const MAX_BODY_BYTES = 64 * 1024;
-
-// The attention wave: an orange band rolls across the desk and back, three times, over the call lights.
-export const ATTENTION = {
-  id: 'attention',
-  region: 'desk',
-  effect: 'wave',
-  color: [255, 90, 20],
-  period: 2.6,
-  duration: 7.8,
-  priority: CALL_PRIORITY + 10,
-};
 
 export function readJson(request) {
   return new Promise((resolve, reject) => {
@@ -46,7 +35,7 @@ export function readJson(request) {
  *   POST   /show        { region, color, effect, duration, priority, id, group, period } -> { id, shown }
  *   DELETE /show/<id>   fade that layer out
  *   GET    /status      what the desk shows, every layer, which devices answer
- *   POST   /attention   the attention wave (ATTENTION); ignored while one is rolling
+ *   POST   /attention   the attention wave (DeskLights.attention); ignored while one is rolling
  *
  * `route` adds more (Claude Code's states).
  */
@@ -64,11 +53,7 @@ export class LightsApi {
       }
     });
     this.route('GET', /^\/status$/, () => this.lights.status());
-    this.route('POST', /^\/attention$/, () => {
-      if (!this.lights.layers.has(ATTENTION.id, Date.now())) {
-        this.lights.show(ATTENTION);
-      }
-    });
+    this.route('POST', /^\/attention$/, () => this.lights.attention());
   }
 
   // `handle(request, captures)` returns what to send back as JSON, or nothing for 204.

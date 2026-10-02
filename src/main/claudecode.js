@@ -1,5 +1,3 @@
-import { ATTENTION } from './lightsapi';
-
 // Claude Code sessions on the keyboard's top row, one segment each (oldest on
 // the left), under the call lights. Motion means busy, steady means your turn.
 const STATES = {
@@ -52,18 +50,12 @@ export class ClaudeCodeSessions {
       this.lights.cancel(id);
       return;
     }
-    const previous = this.lights.layers.has(id, Date.now()) ? this.states.get(session) : null;
+    // A session that was killed never ends; its layer runs out, and its entry here is a few bytes.
+    const previous = this.lights.has(id) ? this.states.get(session) : null;
     this.states.set(session, state);
     this.lights.show({ id, region: 'toprow', group: GROUP, priority: PRIORITY, ...STATES[state] });
-    if (state === 'waiting' && previous !== 'waiting' && !this.lights.layers.has(ATTENTION.id, Date.now())) {
-      this.lights.show(ATTENTION);
+    if (state === 'waiting' && previous !== 'waiting') {
+      this.lights.attention();
     }
-    this.forgetGone();
-  }
-
-  // Sessions whose layer ran out (a Claude Code that was killed) are forgotten.
-  forgetGone() {
-    const now = Date.now();
-    [...this.states.keys()].filter(session => !this.lights.layers.has(`claude:${session}`, now)).forEach(session => this.states.delete(session));
   }
 }

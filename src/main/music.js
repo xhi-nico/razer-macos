@@ -63,7 +63,7 @@ export class MusicVisualiser {
     if (now - this.soundAt < SILENT_MS) {
       // Outlasts a missed follow or two, then fades on its own.
       lights.show({ ...MUSIC, duration: FOLLOW_MS * 3 / 1000 }, at => this.read(at));
-    } else if (lights.layers.has(MUSIC.id, now)) {
+    } else {
       lights.cancel(MUSIC.id);
     }
   }
@@ -74,9 +74,7 @@ export class MusicVisualiser {
       this.listening = false;
     }
     this.soundAt = -Infinity;
-    if (this.lights.layers.has(MUSIC.id, Date.now())) {
-      this.lights.cancel(MUSIC.id);
-    }
+    this.lights.cancel(MUSIC.id);
   }
 
   // The bars for a frame, each 0..1.

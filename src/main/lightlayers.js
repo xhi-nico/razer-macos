@@ -26,6 +26,8 @@ const FADE_IN_MS = 200;
 const FADE_OUT_MS = 400;
 // An update that changes a layer's colour or effect crossfades over this long.
 const CHANGE_MS = 500;
+// Pulses at least this slow look smooth at the slow frame rate.
+const SLOW_PULSE_MS = 1000;
 
 // What a layer looks like, without where or for how long: kept to crossfade from.
 const looks = ({ colors, effect, periodMs, animatedFrom, dim, levels, source }) => ({ colors, effect, periodMs, animatedFrom, dim, levels, source });
@@ -37,9 +39,9 @@ export class LayerError extends Error {
   }
 }
 
-const clamp01 = value => Math.min(1, Math.max(0, value));
-const easeInOut = t => 0.5 - Math.cos(Math.PI * t) / 2;
-const mix = (from, to, amount) => from.map((channel, i) => channel + (to[i] - channel) * amount);
+export const clamp01 = value => Math.min(1, Math.max(0, value));
+export const easeInOut = t => 0.5 - Math.cos(Math.PI * t) / 2;
+export const mix = (from, to, amount) => from.map((channel, i) => channel + (to[i] - channel) * amount);
 
 function parseColor(color) {
   if (Array.isArray(color) && color.length === 3 && color.every(c => Number.isInteger(c) && c >= 0 && c <= 255)) {
@@ -70,7 +72,7 @@ function colorAt(colors, at) {
   return mix(colors[index], colors[index + 1], scaled - index);
 }
 
-const hex = rgb => `#${rgb.map(c => Math.round(c).toString(16).padStart(2, '0')).join('')}`;
+export const toHex = rgb => `#${rgb.map(c => Math.round(c).toString(16).padStart(2, '0')).join('')}`;
 
 function parseLevels(levels) {
   if (levels == null) {
@@ -222,11 +224,22 @@ export class LightLayers {
     });
   }
 
-  // Whether the layers need frame-by-frame painting right now.
-  animating(now) {
+  // How often the layers need painting right now: 'fast' while something
+  // moves quickly (a wave, bars, a fade), 'slow' for slow pulses only (a long
+  // low-battery or error pulse need not cost 33 frames a second), else null.
+  pace(now) {
     this.prune(now);
-    return [...this.layers.values()].some(layer =>
-      layer.effect !== 'solid' || now - layer.startedAt < FADE_IN_MS || layer.endsAt - now <= FADE_OUT_MS || now - layer.changedAt < CHANGE_MS);
+    let pace = null;
+    for (const layer of this.layers.values()) {
+      const fading = now - layer.startedAt < FADE_IN_MS || layer.endsAt - now <= FADE_OUT_MS || now - layer.changedAt < CHANGE_MS;
+      if (fading || layer.effect === 'wave' || layer.effect === 'bars' || (layer.effect === 'pulse' && layer.periodMs < SLOW_PULSE_MS)) {
+        return 'fast';
+      }
+      if (layer.effect === 'pulse') {
+        pace = 'slow';
+      }
+    }
+    return pace;
   }
 
   // When steady layers next need a frame (a fade-out starting, or a layer gone), or Infinity.
@@ -287,7 +300,7 @@ export class LightLayers {
         id,
         region,
         effect,
-        color: colors.length === 1 ? hex(colors[0]) : colors.map(hex),
+        color: colors.length === 1 ? toHex(colors[0]) : colors.map(toHex),
         priority,
         group,
         secondsLeft: Math.round((endsAt - now) / 100) / 10,

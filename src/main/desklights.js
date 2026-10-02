@@ -2,7 +2,7 @@ import { FeatureIdentifier } from './feature/featureidentifier';
 import { RazerDeviceType } from './device/razerdevicetype';
 import { Daylight } from './daylight';
 import { CallVoices } from './callvoices';
-import { LightLayers, CALL_PRIORITY } from './lightlayers';
+import { LightLayers, CALL_PRIORITY, clamp01, easeInOut, mix } from './lightlayers';
 
 const SETTINGS_KEY = 'desklights';
 
@@ -43,6 +43,17 @@ const OTHER_POSITION = 0.75;
 
 // The welcome (away to working) sweeps white in from the left; this is the width of its soft edge.
 const SWEEP_EDGE = 0.35;
+
+// Claude wants you: an orange band rolls across the desk and back, three times, over the call lights.
+export const ATTENTION = {
+  id: 'attention',
+  region: 'desk',
+  effect: 'wave',
+  color: [255, 90, 20],
+  period: 2.6,
+  duration: 7.8,
+  priority: CALL_PRIORITY + 10,
+};
 
 // Next meeting: the keyboard's top row fills amber over the last minute (the
 // mouse warms with it), then both pulse faster and faster until a mic turns on
@@ -94,9 +105,6 @@ function transitionFor(from, to) {
 }
 
 const lookNamed = name => LOOKS.find(look => look.name === name);
-const mix = (from, to, amount) => from.map((channel, i) => channel + (to[i] - channel) * amount);
-const clamp01 = value => Math.min(1, Math.max(0, value));
-const easeInOut = t => 0.5 - Math.cos(Math.PI * t) / 2;
 const toRgb = color => color.map(Math.round);
 
 // How much of each top-row key the voice meter lights: the bar filled from the
@@ -176,6 +184,7 @@ export class DeskLights {
     this.macState = null;
     this.holds = 0; // refreshes in flight
     this.timer = null;
+    this.frameDue = Infinity; // when the next frame is set to paint
     this.rechecks = [];
 
     let saved = {};
@@ -257,15 +266,35 @@ export class DeskLights {
   // Shows a layer (see LightLayers.show); throws LayerError on a bad request.
   show(spec, source) {
     const layer = this.layers.show(spec, Date.now(), source);
-    this.render();
+    this.renderSoon();
     return layer;
   }
 
   // Fades a layer out; false when there is no such layer.
   cancel(id) {
     const found = this.layers.cancel(id, Date.now());
-    this.render();
+    if (found) {
+      this.renderSoon();
+    }
     return found;
+  }
+
+  has(id) {
+    return this.layers.has(id, Date.now());
+  }
+
+  // The attention wave, unless one is already rolling.
+  attention() {
+    if (!this.has(ATTENTION.id)) {
+      this.show(ATTENTION);
+    }
+  }
+
+  // Paints now, unless a frame is due anyway: a burst of hook posts then costs one frame, not one each.
+  renderSoon() {
+    if (!(this.frameDue - Date.now() <= FRAME_GAP_MS)) {
+      this.render();
+    }
   }
 
   status() {
@@ -353,12 +382,15 @@ export class DeskLights {
     }
     this.noticeTopRow(now);
     const layers = this.layersShown();
-    const moving = this.transition != null || this.topRowFade != null || this.voices.listening || (layers && this.layers.animating(now));
-    const slow = this.look.breathe || this.topRowKind != null;
+    const pace = layers ? this.layers.pace(now) : null;
+    const moving = this.transition != null || this.topRowFade != null || this.voices.listening || pace === 'fast';
+    const slow = this.look.breathe || this.topRowKind != null || pace === 'slow';
     this.paint(now, !moving && !slow);
 
     if (moving || slow) {
-      this.timer = setTimeout(() => this.render(), moving ? FRAME_GAP_MS : SLOW_FRAME_GAP_MS);
+      const gap = moving ? FRAME_GAP_MS : SLOW_FRAME_GAP_MS;
+      this.frameDue = now + gap;
+      this.timer = setTimeout(() => this.render(), gap);
       return;
     }
     // Nothing moving: sleep until the next meeting's countdown, the next daylight
@@ -406,10 +438,13 @@ export class DeskLights {
             this.writeColor(device, colorAt(devicePixel(device), mirrorsTopRow && topRow.whole), store);
             return;
           }
-          const rows = Array.from({ length: grid.rows }, (_, row) => Array.from({ length: grid.cols }, (_, col) =>
-            colorAt(keyPixel(row, col, grid.cols), row === 0 && topRow && (color => topRow.at(color, col, grid.cols)))));
-          const first = rows[0][0].join();
-          if (rows.every(row => row.every(rgb => rgb.join() === first))) {
+          // Only the top row differs from the rest, so the rest is worked out once.
+          const row = top => Array.from({ length: grid.cols }, (_, col) =>
+            colorAt(keyPixel(top ? 0 : 1, col, grid.cols), top && topRow && (color => topRow.at(color, col, grid.cols))));
+          const rest = row(false);
+          const rows = [row(true), ...Array(grid.rows - 1).fill(rest)];
+          const [r, g, b] = rows[0][0];
+          if (rows.slice(0, 2).every(keys => keys.every(rgb => rgb[0] === r && rgb[1] === g && rgb[2] === b))) {
             this.writeColor(device, rows[0][0], store);
           } else {
             this.writeGrid(device, rows);
@@ -644,5 +679,6 @@ export class DeskLights {
   stopTimer() {
     clearTimeout(this.timer);
     this.timer = null;
+    this.frameDue = Infinity;
   }
 }

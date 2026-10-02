@@ -49,10 +49,12 @@ export class PanicButton {
     this.addon = addon;
     this.onPanic = onPanic;
     this.counter = new TapCounter();
-    this.watching = false;
-    this.blocked = false;
-    this.reported = null;
+    this.watching = null; // unknown until the first try
     this.onBlockedChange = () => {};
+  }
+
+  get blocked() {
+    return this.watching === false;
   }
 
   start() {
@@ -64,15 +66,14 @@ export class PanicButton {
 
   tryWatch() {
     clearTimeout(this.retry);
+    const was = this.watching;
     this.watching = this.addon.inputMonitoringAccess() === 'granted'
       && this.addon.startKeyWatch(event => {
         if (this.counter.feed(event, Date.now())) {
           this.onPanic();
         }
       });
-    this.blocked = !this.watching;
-    if (this.reported !== this.watching) {
-      this.reported = this.watching;
+    if (was !== this.watching) {
       console.log(this.watching ? 'Panic button: watching for 5 Control taps' : 'Panic button: needs Input Monitoring');
       this.onBlockedChange();
     }

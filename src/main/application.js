@@ -55,8 +55,7 @@ export class Application {
     });
 
     this.app.on('quit', () => {
-      this.music?.stop();
-      this.panic?.stop();
+      [this.music, this.panic, this.battery, this.lightsApi, this.signals].forEach(feature => feature?.stop());
       this.razerApplication.destroy();
     });
   }

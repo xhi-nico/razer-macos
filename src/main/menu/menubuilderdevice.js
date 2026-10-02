@@ -1,5 +1,6 @@
 import { FeatureIdentifier } from '../feature/featureidentifier';
 import { RazerDeviceType } from '../device/razerdevicetype';
+import { toHex } from '../lightlayers';
 
 // Brightness scales whatever Auto lights shows, and DPI and polling rate are not
 // lighting, so these leave Auto on.
@@ -8,21 +9,35 @@ const LEAVES_LIGHTS = [FeatureIdentifier.BRIGHTNESS, FeatureIdentifier.MOUSE_BRI
 const BRIGHTNESS_PRESETS = [0, 25, 50, 75, 100];
 const DPI_PRESETS = [400, 800, 1200, 1600, 2400, 3200, 4800, 6400];
 
-// Presets as radio items, with the current value among them even when it is not a preset.
-function presetItems(presets, current, label, apply) {
-  return [...new Set([...presets, current].filter(Number.isFinite))]
-    .sort((a, b) => a - b)
-    .map(value => ({ label: label(value), type: 'radio', checked: value === current, click: () => apply(value) }));
+// A setting's presets as radio items, the current value among them even when it
+// is not a preset. Picking one applies it and refreshes the menu.
+function presetMenu(application, label, presets, current, format, apply) {
+  return {
+    label: `${label}: ${format(current)}`,
+    submenu: [...new Set([...presets, current].filter(Number.isFinite))]
+      .sort((a, b) => a - b)
+      .map(value => ({
+        label: format(value),
+        type: 'radio',
+        checked: value === current,
+        click() {
+          apply(value);
+          application.refreshTray();
+        },
+      })),
+  };
 }
 
 /**
- * Picking a colour or effect by hand switches Auto lights off, so the next Mac
- * event does not paint over it. Ticking Auto lights hands control back.
+ * Picking a colour or effect by hand stops the running animation and switches
+ * Auto lights off, so the next Mac event does not paint over it. Ticking Auto
+ * lights hands control back.
  */
 export function takesOverLights(application, menuItem) {
   if (menuItem.click) {
     const originalClick = menuItem.click;
     menuItem.click = (...args) => {
+      application.razerApplication.stopAnimations();
       application.setAutoLights(false);
       originalClick(...args);
     };
@@ -260,37 +275,17 @@ function getFeatureBreath(application, device, feature) {
 }
 
 function getFeatureBrightness(application, device, feature) {
-  return {
-    label: `Brightness: ${device.getBrightness()}%`,
-    submenu: presetItems(BRIGHTNESS_PRESETS, device.getBrightness(), value => `${value}%`, value => {
-      device.setBrightness(value);
-      application.refreshTray();
-    }),
-  };
+  return presetMenu(application, 'Brightness', BRIGHTNESS_PRESETS, device.getBrightness(), value => `${value}%`, value => device.setBrightness(value));
 }
 
 function getFeatureDpi(application, device, feature) {
   const { min, max } = feature.configuration;
-  return {
-    label: `DPI: ${device.getDPI()}`,
-    submenu: presetItems(DPI_PRESETS.filter(dpi => dpi >= min && dpi <= max), device.getDPI(), String, value => {
-      device.setDPI(value);
-      application.refreshTray();
-    }),
-  };
+  return presetMenu(application, 'DPI', DPI_PRESETS.filter(dpi => dpi >= min && dpi <= max), device.getDPI(), String, value => device.setDPI(value));
 }
 
 function getFeaturePollRate(application, device, feature) {
-  return {
-    label: `Polling rate: ${device.getPollRate()} Hz`,
-    submenu: presetItems(feature.configuration.pollRates, device.getPollRate(), value => `${value} Hz`, value => {
-      device.setPollRate(value);
-      application.refreshTray();
-    }),
-  };
+  return presetMenu(application, 'Polling rate', feature.configuration.pollRates, device.getPollRate(), value => `${value} Hz`, value => device.setPollRate(value));
 }
-
-const toHex = rgb => `#${rgb.map(c => c.toString(16).padStart(2, '0')).join('')}`;
 
 /**
  * The custom colours that the Custom colour effects use, picked in the macOS
@@ -304,12 +299,11 @@ function getCustomColorItems(application, device) {
   }
   const { enabledRed, enabledGreen, enabledBlue } = staticFeature.configuration;
   const shown = [enabledRed, enabledGreen, enabledBlue];
-  const item = (key, label) => ({
-    label,
-    keepsAnimations: true,
+  const item = (key, name) => ({
+    label: `${name}…`,
     click() {
       const { r, g, b } = device.settings[key].rgb;
-      application.pickColor(`${device.name}: ${label.replace('…', '')}`, [r, g, b], (picked, done) => {
+      application.pickColor(`${device.name}: ${name}`, [r, g, b], (picked, done) => {
         if (!done) {
           return;
         }
@@ -325,8 +319,8 @@ function getCustomColorItems(application, device) {
     },
   });
   return [
-    item('customColor1', 'Custom color…'),
-    ...(device.settings.customColor2 ? [item('customColor2', 'Second custom color…')] : []),
+    item('customColor1', 'Custom color'),
+    ...(device.settings.customColor2 ? [item('customColor2', 'Second custom color')] : []),
   ];
 }
 
@@ -638,19 +632,9 @@ function getFeatureWaveSimple(application, device, feature) {
 }
 
 function getFeatureMouseBrightness(application, device, feature) {
-  const zone = (enabled, label, zoneName) => {
-    if (!enabled) {
-      return null;
-    }
-    const current = device[`getBrightness${zoneName}`]();
-    return {
-      label: `${label}: ${current}%`,
-      submenu: presetItems(BRIGHTNESS_PRESETS, current, value => `${value}%`, value => {
-        device[`setBrightness${zoneName}`](value);
-        application.refreshTray();
-      }),
-    };
-  };
+  const zone = (enabled, label, zoneName) => enabled
+    ? presetMenu(application, label, BRIGHTNESS_PRESETS, device[`getBrightness${zoneName}`](), value => `${value}%`, value => device[`setBrightness${zoneName}`](value))
+    : null;
   const { enabledMatrix, enabledLogo, enabledScroll, enabledLeft, enabledRight } = feature.configuration;
   const zones = [
     zone(enabledMatrix, 'All', 'Matrix'),

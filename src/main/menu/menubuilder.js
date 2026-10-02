@@ -8,25 +8,19 @@ export function getMenuFor(application) {
     .concat(getDeviceMenu(application))
     .concat(getMainMenuBottom(application));
 
-  patch(fullMenu, application);
+  patch(fullMenu);
   return fullMenu;
 }
 
 // Every click is guarded, so a device that fails mid-click is logged rather than
-// thrown. A click on an effect also stops the running animation first; settings
-// (checkboxes, presets, colour pickers) leave it running.
-function patch(deviceMenu, application) {
+// thrown. (Effects stop the running animation through takesOverLights.)
+function patch(deviceMenu) {
   deviceMenu.forEach(menuItem => {
     if (menuItem.hasOwnProperty('click')) {
       const originalClick = menuItem['click'];
-      menuItem['click'] = (...args) => guard(`Menu "${menuItem.label}"`, () => {
-        if (menuItem.type !== 'checkbox' && menuItem.type !== 'radio' && !menuItem.keepsAnimations) {
-          application.razerApplication.stopAnimations();
-        }
-        originalClick(...args);
-      });
+      menuItem['click'] = (...args) => guard(`Menu "${menuItem.label}"`, () => originalClick(...args));
     } else if (menuItem.hasOwnProperty('submenu')) {
-      patch(menuItem['submenu'], application);
+      patch(menuItem['submenu']);
     }
   });
 }
@@ -214,15 +208,15 @@ function getCustomColorsCycleMenu(application) {
   const colorItems = application.razerApplication.cycleAnimation.getAllColors().map((color, index) => {
     return {
       label: `Color ${index + 1}…`,
-      keepsAnimations: true,
       click: () => {
         application.pickColor(`Cycle color ${index + 1}`, [color.r, color.g, color.b], ([r, g, b], done) => {
           // A rescan rebuilds the cycle, so find the live one.
           const cycle = application.razerApplication.cycleAnimation;
-          cycle.cycleColors[index] = { r, g, b };
           if (done) {
-            cycle.saveSettings();
+            cycle.updateColor(index, { r, g, b });
             application.refreshTray();
+          } else {
+            cycle.cycleColors[index] = { r, g, b };
           }
         });
       },
