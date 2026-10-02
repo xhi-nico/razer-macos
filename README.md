@@ -56,6 +56,10 @@ microphone turns on (you joined) or three minutes pass. A meeting is a timed eve
 with other attendees that you have not declined. macOS asks once for Calendar access; the
 development build (`yarn dev`) cannot ask, so the countdown only runs in the packaged app.
 
+**Low battery.** A wireless mouse under 15% that is not charging pulses amber, until it is
+plugged in or charged. The charge is read every two minutes. On its cable the Pro Click V2
+Vertical reports itself as charging, so it never pulses there.
+
 Picking a colour or effect from the menu switches Auto lights off; brightness leaves it on.
 
 ## Local lights API
@@ -84,7 +88,8 @@ away, when layers wait hidden (they never reach the stored red). A bad request g
 the reason. Layers ease in and out.
 
 - `DELETE /show/<id>` fades that layer out now.
-- `GET /status` shows the current look, every layer with its seconds left, and which devices answer.
+- `GET /status` shows the current look, every layer with its seconds left, which devices answer,
+  and each mouse's charge.
 - `POST /attention` rolls an orange band across the desk and back three times, over the call
   lights; a second one while it rolls is ignored.
 - `POST /claude-code` takes Claude Code's hook JSON (below).

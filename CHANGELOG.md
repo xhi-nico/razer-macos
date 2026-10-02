@@ -48,6 +48,7 @@ version number.
 - `librazermacos`: `razer_set_skip_responses`, so lighting frames are sent without waiting
   for each device's reply (55ms to 6ms per frame across a keyboard, mouse and mat).
 
+- A wireless mouse under 15% that is not charging pulses amber.
 - A device that stops answering shows "⚠️ not answering" next to its name in the menu, until
   it recovers.
 - A log file, `~/Library/Logs/Razer macOS/main.log`, opened from **About > Open Log**. Uncaught

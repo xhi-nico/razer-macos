@@ -5,6 +5,7 @@ import { getMenuFor } from './menu/menubuilder';
 import { MacSignals } from './macsignals';
 import { LightsApi, readJson } from './lightsapi';
 import { ClaudeCodeSessions } from './claudecode';
+import { BatteryWatch } from './battery';
 import addon from '../driver';
 import { clearBatteryMode } from './menu/menubuilderdevice';
 import { guard } from './guard';
@@ -190,6 +191,8 @@ export class Application {
       sessions.handle(await readJson(request).catch(() => null));
     });
     this.lightsApi.start();
+    this.battery = new BatteryWatch(lights, () => this.razerApplication.deviceManager.activeRazerDevices);
+    this.battery.start();
   }
 
   setAutoLights(on) {
@@ -205,6 +208,9 @@ export class Application {
   refreshTray(withDeviceRefresh, force = false) {
     const refresh = withDeviceRefresh ? this.razerApplication.refresh(force) : Promise.resolve(true);
     return refresh.then(() => {
+      if (withDeviceRefresh) {
+        this.battery?.check(); // a mouse may have just arrived
+      }
       const contextMenu = Menu.buildFromTemplate(getMenuFor(this));
       this.tray.setContextMenu(contextMenu);
     });

@@ -233,7 +233,11 @@ export class DeskLights {
       topRow: this.topRowKind,
       layersShown: this.layersShown(),
       layers: this.layers.status(now),
-      devices: (this.getDevices() || []).map(device => ({ name: device.name, answering: !this.isFailing(device) })),
+      devices: (this.getDevices() || []).map(device => ({
+        name: device.name,
+        answering: !this.isFailing(device),
+        ...(device.batteryLevel != null && { battery: device.batteryLevel, charging: device.chargingStatus }),
+      })),
     };
   }
 
