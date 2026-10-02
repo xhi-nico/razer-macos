@@ -30,11 +30,11 @@ version number.
   a device in, or waking from sleep, picks up the current look. Picking a colour or effect by
   hand switches Auto off; brightness does not.
 - Warm white after sunset (from the time zone's coordinates), shifting over half an hour.
-- A local lights API on `127.0.0.1:47820`: show a colour (solid, pulse or wave) on the desk,
+- A local lights API on `127.0.0.1:47820`: show a colour (solid, pulse, blink or wave) on the desk,
   keyboard, top row, mouse or mat for a while, with a priority, an id to update or cancel it,
   groups that split a region, and a status endpoint.
 - An attention wave (an orange band across the keyboard and back, three times, the mouse
-  pulsing orange in step) on `POST 127.0.0.1:47820/attention`.
+  blinking orange in step) on `POST 127.0.0.1:47820/attention`.
 - Claude Code: the attention wave rolls when a session is blocked on you (a permission prompt,
   a question, a plan to approve), and again every minute until you answer. Fed by Claude
   Code's hooks posting to `/claude-code`.

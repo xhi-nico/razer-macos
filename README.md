@@ -91,11 +91,11 @@ curl -s -X POST -H 'X-Desk-Lights: 1' http://127.0.0.1:47820/show \
 |---|---|---|
 | `color` | `"#rrggbb"` or `[r, g, b]`, or a list of up to 8, spread across the region as a gradient | required |
 | `region` | `desk`, `keyboard`, `toprow`, `mouse`, `mat` | `desk` |
-| `effect` | `solid`; `pulse` (breathes once per `period`); `wave` (a band rolls across the region and back once per `period`); `bars` (each spot lit by its bar in `levels`) | `solid` |
+| `effect` | `solid`; `pulse` (breathes once per `period`); `blink` (on for the middle half of each `period`, switched hard); `wave` (a band rolls across the region and back once per `period`); `bars` (each spot lit by its bar in `levels`) | `solid` |
 | `levels` | for `bars`: 1 to 64 numbers from 0 to 1, spread across the region; post again with the same `id` to move them | none |
 | `dim` | how much to darken what is under the layer, 0 to 1 | `0` |
 | `duration` | seconds, up to 12 hours | `10` |
-| `period` | seconds per pulse or wave | `2`, wave `2.6` |
+| `period` | seconds per pulse, blink or wave | `2`, wave `2.6` |
 | `priority` | higher paints over lower; the call lights and meeting countdown sit at `50` | `10` |
 | `id` | posting the same id again updates that layer: it keeps its place, crossfades to a new colour or effect, and runs for its new duration | made up |
 | `group` | layers sharing a group split their region between them, oldest on the left | none |
@@ -108,7 +108,7 @@ the reason. Layers ease in and out.
 - `GET /status` shows the current look, every layer with its seconds left, which devices answer,
   and each mouse's charge.
 - `POST /attention` rolls an orange band across the keyboard and back three times, over the
-  call lights, while the mouse pulses orange from dark five times a pass; a second one while
+  call lights, while the mouse blinks orange five times a pass; a second one while
   it rolls is ignored.
 - `POST /claude-code` takes Claude Code's hook JSON (below).
 
@@ -116,7 +116,7 @@ the reason. Layers ease in and out.
 
 The desk stays out of Claude Code's way until a session is blocked on you: a permission
 prompt, a question, a plan to approve, or an MCP server asking for input. Then the attention
-wave rolls (orange across the keyboard, the mouse pulsing orange in step), and again every minute
+wave rolls (orange across the keyboard, the mouse blinking orange in step), and again every minute
 until you answer. Working, thinking and finished replies show nothing. Claude Code raises a
 permission prompt to its hooks only after about 6 seconds unanswered, so a prompt you answer
 straight away never lights up; a question does at once.

@@ -60,6 +60,14 @@ describe('LightLayers', () => {
     expect(level(500, 0)).toBe(0);
     expect(level(750, 1)).toBeGreaterThan(level(750, 0.5)); // reaching the far end
   });
+
+  it('blinks hard, on for the middle half of each period', () => {
+    const layers = new LightLayers();
+    layers.show({ color: [255, 255, 255], effect: 'blink', period: 1, duration: 4 }, 0);
+    const level = now => layers.painters(now, () => true)[0]([0, 0, 0], { desk: null })[0];
+    expect([1240, 1260, 1500, 1740, 1760].map(level)).toEqual([0, 255, 255, 255, 0]);
+    expect(layers.pace(1500)).toBe('fast');
+  });
 });
 
 describe('LightLayers updates', () => {
