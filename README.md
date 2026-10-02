@@ -108,7 +108,7 @@ the reason. Layers ease in and out.
 - `GET /status` shows the current look, every layer with its seconds left, which devices answer,
   and each mouse's charge.
 - `POST /attention` rolls an orange band across the keyboard and back three times, over the
-  call lights, while the mouse pulses orange from dark three times a pass; a second one while
+  call lights, while the mouse pulses orange from dark five times a pass; a second one while
   it rolls is ignored.
 - `POST /claude-code` takes Claude Code's hook JSON (below).
 

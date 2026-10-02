@@ -139,12 +139,12 @@ describe('DeskLights', () => {
     lights.update(macState());
     vi.advanceTimersByTime(2000);
     lights.attention();
-    vi.advanceTimersByTime(870); // the band is crossing the keyboard; the mouse is dark between pulses
+    vi.advanceTimersByTime(1040); // the band is crossing the keyboard; the mouse is dark between pulses
     expect(keyboard().last('setCustomFrame')).toBeDefined();
     expect(Math.max(...mouse().last('setModeStaticNoStore')[0])).toBeLessThan(30);
-    vi.advanceTimersByTime(430); // the band turns past the keyboard's right end
+    vi.advanceTimersByTime(260); // the band turns past the keyboard's right end
     const [[r, g, b]] = mouse().last('setModeStaticNoStore');
-    expect([r, g, b]).toEqual([255, expect.closeTo(90, -1), expect.closeTo(20, -1)]);
+    expect([r, g, b]).toEqual([expect.closeTo(255, -1), expect.closeTo(130, -1), 0]);
     vi.advanceTimersByTime(10 * 1000);
     expect(mouse().last('setModeStaticNoStore')).toEqual([WHITE]);
   });

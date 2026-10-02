@@ -45,7 +45,8 @@ const OTHER_POSITION = 0.75;
 const SWEEP_EDGE = 0.35;
 
 // Claude needs you: an orange band rolls across the keyboard and back, three times, over the
-// call lights, while the mouse pulses orange from dark three times a pass, brightest as the band turns.
+// call lights, while the mouse pulses orange from dark five times a pass, brightest as the band turns.
+// The mouse's LED shows the band's orange as red, so it gets a yellower one.
 export const ATTENTION = {
   id: 'attention',
   region: 'keyboard',
@@ -55,7 +56,9 @@ export const ATTENTION = {
   duration: 7.8,
   priority: CALL_PRIORITY + 10,
 };
-const ATTENTION_MOUSE = { ...ATTENTION, id: 'attention:mouse', region: 'mouse', effect: 'pulse', period: ATTENTION.period / 3, dim: 1 };
+const ATTENTION_MOUSE = {
+  ...ATTENTION, id: 'attention:mouse', region: 'mouse', color: [255, 130, 0], effect: 'pulse', period: ATTENTION.period / 5, dim: 1,
+};
 
 // Next meeting: the keyboard's top row fills amber over the last minute (the
 // mouse warms with it), then both pulse faster and faster until a mic turns on
