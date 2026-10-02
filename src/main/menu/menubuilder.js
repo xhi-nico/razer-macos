@@ -41,6 +41,14 @@ function getMainMenu(application) {
         application.setAutoLights(menuItem.checked);
       },
     },
+    getPlainItem(application),
+    ...(application.panic?.blocked ? [{
+      label: 'Allow Input Monitoring for the panic button…',
+      toolTip: 'The panic button needs it to see Control being tapped; it never sees which other keys you press',
+      click() {
+        application.openInputMonitoringSettings();
+      },
+    }] : []),
     // Only the packaged app: in development this would register the bare Electron binary.
     ...(application.app.isPackaged ? [{
       label: 'Open at Login',
@@ -78,6 +86,20 @@ function getMainMenu(application) {
     },
     { type: 'separator' },
   ];
+}
+
+function getPlainItem(application) {
+  const { lights } = application.razerApplication;
+  const until = new Date(lights.plainUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return {
+    label: lights.plain ? `Plain lights until ${until}` : 'Plain lights for an hour',
+    type: 'checkbox',
+    checked: lights.plain,
+    toolTip: 'Or tap Control 5 times. Stops every animation and holds white, warm white at night, red when away',
+    click(menuItem) {
+      application.setPlain(menuItem.checked);
+    },
+  };
 }
 
 function getAllDevicesMenu(application) {

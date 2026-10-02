@@ -68,6 +68,17 @@ meter, macOS 14.2 or later). Only the spectrum is measured; nothing is recorded.
 plugged in or charged. The charge is read every two minutes. On its cable the Pro Click V2
 Vertical reports itself as charging, so it never pulses there.
 
+**Panic button.** Tap Control five times within two seconds (either Control key, nothing else
+pressed in between) and every animation stops: the desk holds plain white, warm white at
+night, red when away, with no call lights, meter, visualiser or layers. Five more taps let
+go, and it lets go by itself after an hour. **Plain lights** in the menu does the same and
+shows when the hour is up. It holds even with Auto lights off.
+
+The taps need **Input Monitoring** (System Settings > Privacy & Security). macOS asks once; if
+it is refused, the menu offers **Allow Input Monitoring for the panic button…**, and the taps
+start working within half a minute of allowing it, no restart needed. The app only ever learns
+that Control went down or up, or that some other key was pressed, never which one.
+
 Picking a colour or effect from the menu switches Auto lights off; brightness leaves it on.
 
 ## Local lights API

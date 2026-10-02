@@ -48,6 +48,9 @@ version number.
 - `librazermacos`: `razer_set_skip_responses`, so lighting frames are sent without waiting
   for each device's reply (55ms to 6ms per frame across a keyboard, mouse and mat).
 
+- A panic button: tap Control five times to stop every animation and hold the plain look, until
+  five more taps or an hour; also **Plain lights** in the menu. Needs Input Monitoring, and
+  offers the setting when it is missing.
 - A music visualiser on the keyboard's top row while the Mac plays sound and no call is on: the
   row dims and each key lights with one band of the spectrum. The lights API gains `bars`
   (levels across a region), colour gradients and `dim`.

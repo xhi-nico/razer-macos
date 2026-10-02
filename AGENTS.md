@@ -51,6 +51,9 @@ A device needs two things, or it silently never appears:
 - The voice bar records from the call's mic and taps the call app's audio, and the music
   visualiser taps all system audio while any other app plays, so this app shows up as recording. The mic-in-use check leaves this app out; anything new that asks "is a mic on?"
   must too, or the call never ends.
+- `uiohook-napi` (the ripple effect's key hook) needs Accessibility, and stopping it stops it for
+  everyone. The panic button uses its own listen-only tap (`keywatch.mm`), which needs only Input
+  Monitoring and reports Control down/up or "other key", never which key.
 - `package.json` pins `vite` in `resolutions`: without it yarn 1 nests a second copy under
   vitest and the install fails. Vitest stays on 4, since 5 refuses odd Node versions (25).
 - Calendar access needs `NSCalendarsFullAccessUsageDescription`, which only the packaged app's

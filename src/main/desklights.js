@@ -20,6 +20,9 @@ const LOOKS = [
   { name: 'working', color: [255, 255, 255], daylight: true, when: () => true },
 ];
 
+// The panic button holds the plain look (no animation, no layers, no top row) this long at most.
+const PLAIN_MS = 60 * 60 * 1000;
+
 // After sunset the daylight looks shift to this warm white, and back after sunrise.
 const WARM_WHITE = [255, 170, 90];
 // While that shift is under way, repaint this often.
@@ -168,6 +171,9 @@ export class DeskLights {
     this.written = new Map(); // device -> what it last showed, to skip repeats
     this.failing = new Map(); // device -> { retryAt, delay } while its writes fail
     this.onHealthChange = () => {}; // a device stopped or started answering
+    this.plainUntil = 0; // while set, the panic button holds the plain look until then
+    this.onPlainChange = () => {}; // the plain hold started or ended
+    this.macState = null;
     this.holds = 0; // refreshes in flight
     this.timer = null;
     this.rechecks = [];
@@ -201,14 +207,51 @@ export class DeskLights {
       this.meetings.filter(start => this.inMeetingWindow(start, now)).forEach(start => this.joinedMeetings.add(start));
     }
 
-    const next = LOOKS.find(look => look.when(macState));
+    this.macState = macState;
+    this.followLook(now);
+    this.render();
+  }
+
+  // Moves to the look the Mac's state calls for; the plain hold skips the idle breath.
+  followLook(now) {
+    if (this.macState == null) {
+      return;
+    }
+    const next = LOOKS.find(look => look.when(this.macState) && !(this.plain && look.breathe));
     if (next !== this.look) {
       console.log(`Lights: ${this.look.name} -> ${next.name}`);
       this.transition = { from: this.baseAt(now), startedAt: now, ...transitionFor(this.look.name, next.name) };
       this.look = next;
       this.lookSince = now;
     }
+  }
+
+  get plain() {
+    return this.plainUntil > 0;
+  }
+
+  /**
+   * The panic button: hold the plain look (white, warm white at night, red when
+   * away) with nothing moving and nothing over it, for an hour at most. It holds
+   * even with Auto lights off, since it is there to calm the desk down.
+   */
+  setPlain(on) {
+    if (on === this.plain) {
+      return;
+    }
+    const now = Date.now();
+    this.plainUntil = on ? now + PLAIN_MS : 0;
+    console.log(on ? 'Lights: holding the plain look' : 'Lights: plain hold over');
+    this.followVoices();
+    this.followLook(now);
+    this.written.clear();
+    this.onPlainChange();
     this.render();
+  }
+
+  // Whether this app paints the devices: Auto lights, or the plain hold.
+  driving() {
+    return this.auto || this.plain;
   }
 
   // Shows a layer (see LightLayers.show); throws LayerError on a bad request.
@@ -229,6 +272,7 @@ export class DeskLights {
     const now = Date.now();
     return {
       auto: this.auto,
+      plainSecondsLeft: this.plain ? Math.round((this.plainUntil - now) / 1000) : 0,
       look: this.look.name,
       topRow: this.topRowKind,
       layersShown: this.layersShown(),
@@ -241,14 +285,14 @@ export class DeskLights {
     };
   }
 
-  // Layers show over the look, except over the stored red.
+  // Layers show over the look, except over the stored red and during the plain hold.
   layersShown() {
-    return this.auto && this.look.name !== 'away';
+    return this.auto && !this.plain && this.look.name !== 'away';
   }
 
   // No time to animate: the Mac is about to sleep, log out or shut down, or the app is quitting.
   sleepNow() {
-    if (!this.auto || this.holds > 0) {
+    if (!this.driving() || this.holds > 0) {
       return;
     }
     this.stopAnimating();
@@ -299,10 +343,14 @@ export class DeskLights {
 
   render() {
     this.stopTimer();
-    if (!this.auto || this.holds > 0) {
+    const now = Date.now();
+    if (this.plain && now >= this.plainUntil) {
+      this.setPlain(false);
       return;
     }
-    const now = Date.now();
+    if (!this.driving() || this.holds > 0) {
+      return;
+    }
     this.noticeTopRow(now);
     const layers = this.layersShown();
     const moving = this.transition != null || this.topRowFade != null || this.voices.listening || (layers && this.layers.animating(now));
@@ -319,6 +367,7 @@ export class DeskLights {
     const wake = Math.min(
       daylightChange <= now ? now + DAYLIGHT_STEP_MS : daylightChange,
       layers ? this.layers.nextChange(now) : Infinity,
+      this.plain ? this.plainUntil : Infinity,
       ...[...this.failing.values()].map(({ retryAt }) => Math.max(retryAt, now + FRAME_GAP_MS)),
       ...this.meetings
         .filter(start => !this.joinedMeetings.has(start))
@@ -487,7 +536,7 @@ export class DeskLights {
 
   // What the top row (and the mouse) should show now: 'meeting', 'onAir' or null.
   topRowKindAt(now) {
-    if (this.look.name === 'away') {
+    if (this.look.name === 'away' || this.plain) {
       return null;
     }
     if (this.meetingAt(now)) {
@@ -548,7 +597,7 @@ export class DeskLights {
 
   // Measures the call's voices while another app records and Auto lights is on.
   followVoices() {
-    if (this.auto && this.recording) {
+    if (this.auto && !this.plain && this.recording) {
       this.voices.listen();
     } else {
       this.voices.stop();

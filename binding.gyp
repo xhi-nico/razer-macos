@@ -21,6 +21,7 @@
           '-framework CoreAudio',
           '-framework EventKit',
           '-framework Accelerate',
+          '-framework ApplicationServices',
           '-framework Foundation'
       ],
       'xcode_settings': {
@@ -45,6 +46,7 @@
               '-framework CoreAudio',
               '-framework EventKit',
               '-framework Accelerate',
+              '-framework ApplicationServices',
               '-framework Foundation'
           ],
       }

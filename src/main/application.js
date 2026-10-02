@@ -7,6 +7,7 @@ import { LightsApi, readJson } from './lightsapi';
 import { ClaudeCodeSessions } from './claudecode';
 import { BatteryWatch } from './battery';
 import { MusicVisualiser } from './music';
+import { PanicButton } from './panic';
 import addon from '../driver';
 import { clearBatteryMode } from './menu/menubuilderdevice';
 import { guard } from './guard';
@@ -59,6 +60,7 @@ export class Application {
 
     this.app.on('quit', () => {
       this.music?.stop();
+      this.panic?.stop();
       this.razerApplication.destroy();
     });
 
@@ -178,6 +180,7 @@ export class Application {
   startSignals() {
     const { lights } = this.razerApplication;
     lights.onHealthChange = () => this.refreshTray();
+    lights.onPlainChange = () => this.refreshTray();
     this.signals = new MacSignals(addon, powerMonitor);
     this.signals.on('change', state => lights.update(state));
     this.signals.on('sleep', () => lights.sleepNow());
@@ -197,6 +200,21 @@ export class Application {
     this.battery.start();
     this.music = new MusicVisualiser(lights, addon);
     this.music.start();
+    this.panic = new PanicButton(addon, () => this.setPlain(!lights.plain));
+    this.panic.onBlockedChange = () => this.refreshTray();
+    this.panic.start();
+  }
+
+  // The panic button, or its menu item: stop every animation and hold the plain look.
+  setPlain(on) {
+    if (on) {
+      this.razerApplication.stopAnimations();
+    }
+    this.razerApplication.lights.setPlain(on);
+  }
+
+  openInputMonitoringSettings() {
+    shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent');
   }
 
   setAutoLights(on) {

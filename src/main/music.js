@@ -24,8 +24,8 @@ const toLevel = db => Math.min(1, Math.max(0, (db - QUIET_DB) / (LOUD_DB - QUIET
 
 /**
  * Listens to everything the Mac plays (the system audio tap in musicaudio.mm)
- * while Auto lights is on, the Mac is here, and no camera or mic is on: a call
- * gets the call meter instead. Only loudness and spectrum are measured.
+ * while layers show (Auto lights on, the Mac here, no plain hold) and no camera
+ * or mic is on: a call gets the call meter instead. Only loudness and spectrum are measured.
  */
 export class MusicVisualiser {
   constructor(lights, addon) {
@@ -48,7 +48,7 @@ export class MusicVisualiser {
 
   follow(now = Date.now()) {
     const lights = this.lights;
-    if (!lights.auto || lights.onAir || lights.look.name === 'away') {
+    if (!lights.layersShown() || lights.onAir) {
       this.quiet();
       return;
     }

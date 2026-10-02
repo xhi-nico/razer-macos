@@ -234,4 +234,40 @@ describe('DeskLights', () => {
     expect(health).toHaveBeenCalledTimes(2);
     expect(lights.isFailing(mouse())).toBe(false);
   });
+
+  it('holds the plain look, with nothing over it, until let go or an hour passes', () => {
+    lights.update(macState());
+    vi.advanceTimersByTime(2000);
+    lights.show({ region: 'mouse', color: '#00ff00', duration: 7200 });
+    lights.update(macState({ camera: true, idle: true }));
+    vi.advanceTimersByTime(2000);
+    expect(mouse().last('setModeStaticNoStore')).not.toEqual([WHITE]);
+
+    lights.setPlain(true);
+    vi.advanceTimersByTime(2000);
+    expect(lights.look.name).toBe('working'); // no idle breath either
+    devices.forEach(device => expect(device.last('setModeStaticNoStore')).toEqual([WHITE]));
+    expect(lights.timer).not.toBeNull(); // asleep until the hour is up
+
+    lights.update(macState({ away: true }));
+    vi.advanceTimersByTime(2000);
+    expect(mouse().last('setModeStatic')).toEqual([RED]);
+    lights.update(macState({ camera: true }));
+
+    vi.advanceTimersByTime(60 * 60 * 1000);
+    expect(lights.plain).toBe(false);
+    expect(mouse().last('setModeStaticNoStore')).not.toEqual([WHITE]);
+  });
+
+  it('holds the plain look even with Auto lights off', () => {
+    lights.update(macState());
+    lights.setAuto(false);
+    lights.setPlain(true);
+    vi.advanceTimersByTime(2000);
+    expect(mat().last('setModeStaticNoStore')).toEqual([WHITE]);
+    lights.setPlain(false);
+    const calls = mat().calls.length;
+    vi.advanceTimersByTime(5000);
+    expect(mat().calls.length).toBe(calls);
+  });
 });
