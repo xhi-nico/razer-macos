@@ -292,6 +292,17 @@ Q: Menu says "No device found".
 
 A: Use the "Refresh Device List" option, which can be found when pressing the Razer OS icon on the top menu bar.
 
+Q: Something went wrong. Where do I look?
+
+A: **About > Open Log** in the menu opens `~/Library/Logs/Razer macOS/main.log`. A device that
+stops answering is logged there, retried on its own, and logged again when it recovers. If the
+app itself crashed, macOS keeps a report in `~/Library/Application Support/Razer macOS/Crashpad`;
+nothing is uploaded.
+
+Q: How do I start it when I log in?
+
+A: Tick **Open at Login** in the menu. Only one copy runs at a time; opening it again shows its menu.
+
 Q: How do I customize and rebind keys?
 
 You might find the [Karabiner-elements](https://karabiner-elements.pqrs.org/) tool helpful.
@@ -317,6 +328,10 @@ Install node package dependencies:
 
     yarn
 
+Run the tests (fake devices, no hardware needed):
+
+    yarn test
+
 Run development server:
 
     yarn dev
@@ -329,7 +344,13 @@ For building a distribution ready app and dmg:
 
     yarn dist
 
-The app is ad-hoc signed during the build (there is no Developer ID, so it is not notarized).
+There is no Developer ID, so the app is not notarized. By default each build is ad-hoc signed,
+which macOS treats as a new app: it asks again for Calendar, microphone and system audio. Run
+this once per Mac and builds are signed with a local identity instead, keeping those permissions:
+
+    scripts/make-signing-identity.sh
+
+The first build after it asks once to let `codesign` use the key; choose Always Allow.
 The installer is `dist/Razer macOS-<version>-universal.dmg`.
 
 ## Implementation

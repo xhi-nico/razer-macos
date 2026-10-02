@@ -42,6 +42,30 @@ version number.
 - `librazermacos`: `razer_set_skip_responses`, so lighting frames are sent without waiting
   for each device's reply (55ms to 6ms per frame across a keyboard, mouse and mat).
 
+- A log file, `~/Library/Logs/Razer macOS/main.log`, opened from **About > Open Log**. Uncaught
+  errors are logged instead of stopping at an error dialog, and native crashes leave a local
+  crash report.
+- **Open at Login** in the menu. Only one copy of the app runs; opening it again shows its menu.
+- `scripts/make-signing-identity.sh`: a local signing identity, so rebuilt apps keep their
+  Calendar, microphone and system audio permissions.
+- Tests for Auto lights, daylight and the device list (`yarn test`), run by `scripts/verify.sh`.
+- `librazermacos`: every USB request times out after 500 ms, and `razer_take_usb_error` reports
+  a failed one.
+
+### Fixed
+
+- A crash after any device rescan: the native layer kept the freed device list, so the next
+  menu click, settings change or tray click on an old device read freed memory. Old devices now
+  throw an error that is logged, and the settings window finds the live device.
+- Two rescans at once (a replug during a refresh) left the devices open twice, so the second
+  could not open them. Rescans now run one at a time and close the old devices first.
+- A device that stops answering is skipped and retried on its own (1 second, doubling to 30),
+  instead of failing every frame; the rest of the desk keeps going.
+- Ripple and Wheel sent frames every 0.05 ms rather than every 50 ms, and Ripple added another
+  key listener each time it started.
+- One failing device stopped an all-devices action (Static, Spectrum, Cycle) for every device
+  after it.
+
 ### Removed
 
 - The State manager and its per-trigger saved states, replaced by Auto lights.
