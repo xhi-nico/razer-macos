@@ -66,6 +66,7 @@
       "type": "distribution",
       "hardenedRuntime": false,
       "identity": "-",
+      "sign": "./scripts/sign.js",
       "target": [
         {
           "target": "dmg",
