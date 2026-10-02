@@ -58,10 +58,39 @@ development build (`yarn dev`) cannot ask, so the countdown only runs in the pac
 
 Picking a colour or effect from the menu switches Auto lights off; brightness leaves it on.
 
-**Attention wave.** `POST http://127.0.0.1:47820/attention` with the header `X-Desk-Lights: 1`
-rolls an orange band across the desk and back three times, then hands back. To have Claude Code use it when it is
-waiting on you (every finished reply, plus permission prompts and the 60-second idle
-reminder), add to `~/.claude/settings.json`, then restart Claude Code:
+## Local lights API
+
+Other programs on this Mac can show a colour on the desk for a while. Every request needs the
+header `X-Desk-Lights: 1`, which keeps web pages out; the server only listens on `127.0.0.1`.
+
+```sh
+curl -s -X POST -H 'X-Desk-Lights: 1' http://127.0.0.1:47820/show \
+  -d '{"id": "build", "region": "toprow", "color": "#00ff00", "effect": "pulse", "duration": 30}'
+```
+
+| Field | Values | Default |
+|---|---|---|
+| `color` | `"#rrggbb"` or `[r, g, b]` | required |
+| `region` | `desk`, `keyboard`, `toprow`, `mouse`, `mat` | `desk` |
+| `effect` | `solid`; `pulse` (breathes once per `period`); `wave` (a band rolls across the region and back once per `period`) | `solid` |
+| `duration` | seconds, up to 12 hours | `10` |
+| `period` | seconds per pulse or wave | `2`, wave `2.6` |
+| `priority` | higher paints over lower; the call lights and meeting countdown sit at `50` | `10` |
+| `id` | posting the same id again updates that layer, keeping its place and its animation | made up |
+| `group` | layers sharing a group split their region between them, oldest on the left | none |
+
+It answers `{"id": ..., "shown": ...}`; `shown` is false while Auto lights is off or the Mac is
+away, when layers wait hidden (they never reach the stored red). A bad request gets a 400 with
+the reason. Layers ease in and out.
+
+- `DELETE /show/<id>` fades that layer out now.
+- `GET /status` shows the current look, every layer with its seconds left, and which devices answer.
+- `POST /attention` rolls an orange band across the desk and back three times, over the call
+  lights; a second one while it rolls is ignored.
+
+To have Claude Code use the attention wave when it is waiting on you (every finished reply,
+plus permission prompts and the 60-second idle reminder), add to `~/.claude/settings.json`,
+then restart Claude Code:
 
 ```json
 "hooks": {

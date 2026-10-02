@@ -1,5 +1,4 @@
 import { EventEmitter } from 'events';
-import http from 'http';
 
 const POLL_MS = 1000;
 const IDLE_AFTER_SECONDS = 300;
@@ -10,8 +9,6 @@ const MEETINGS_BEHIND_MS = 3 * 60 * 1000;
 const MEETINGS_AHEAD_MS = 2 * 60 * 1000;
 // Reading the mic takes ~17ms, so it is read every other poll.
 const MIC_POLL_MS = 2 * 1000;
-// Claude Code's Stop and Notification hooks post here; see README.
-export const ATTENTION_PORT = 47820;
 
 /**
  * Watches the Mac and reports what it is doing. Every second it reads the
@@ -23,7 +20,6 @@ export const ATTENTION_PORT = 47820;
  *   change    { away, camera, idle, mic, meetings }, whenever any of them changes
  *   devices   a Razer device was plugged, unplugged or re-enumerated
  *   sleep     the Mac is about to sleep, log out or shut down; act now
- *   attention something (Claude Code) wants the user
  */
 export class MacSignals extends EventEmitter {
   constructor(addon, powerMonitor) {
@@ -54,15 +50,10 @@ export class MacSignals extends EventEmitter {
     // it reads the same as before sleeping.
     this.powerMonitor.on('resume', () => this.sample(true));
     ['suspend', 'shutdown'].forEach(event => this.powerMonitor.on(event, () => this.emit('sleep')));
-
-    this.startAttentionServer();
   }
 
   stop() {
     clearInterval(this.pollInterval);
-    if (this.server) {
-      this.server.close();
-    }
   }
 
   sample(force = false) {
@@ -100,21 +91,5 @@ export class MacSignals extends EventEmitter {
 
   readDevicesFingerprint() {
     return this.addon.listRazerUsbEntries().sort().join(',');
-  }
-
-  startAttentionServer() {
-    this.server = http.createServer((request, response) => {
-      // Requiring a custom header keeps web pages out: a browser will not send
-      // one cross-origin without a preflight, which this server never answers.
-      if (request.method === 'POST' && request.url === '/attention' && request.headers['x-desk-lights']) {
-        this.emit('attention');
-        response.writeHead(204);
-      } else {
-        response.writeHead(404);
-      }
-      response.end();
-    });
-    this.server.on('error', error => console.warn('Attention listener unavailable:', error.message));
-    this.server.listen(ATTENTION_PORT, '127.0.0.1');
   }
 }

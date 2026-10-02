@@ -41,7 +41,9 @@ A device needs two things, or it silently never appears:
 - The Pro Click V2 Vertical Edition rejects brightness on `ZERO_LED`; it answers on the underglow
   zone (`0x0A`), while lighting effects work on `ZERO_LED`.
 - Auto lights (`desklights.js` decides, `macsignals.js` watches the Mac) owns the lighting while
-  on, and the attention port `47820` belongs to whichever copy of the app started first.
+  on. Anything shown on top of it for a while is a layer (`lightlayers.js`), created through the
+  local lights API (`lightsapi.js`, port `47820`, which belongs to whichever copy started first).
+  New light features should be layers, not new branches in `paint`.
 - Animation frames are sent with `setSkipResponses(true)` and the no-store writes; a settled
   frame waits for replies, and only the settled red is stored in the devices, so they power up
   red. Anything that reads from a device while skipping is on gets garbage, so keep it scoped

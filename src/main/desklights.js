@@ -2,6 +2,7 @@ import { FeatureIdentifier } from './feature/featureidentifier';
 import { RazerDeviceType } from './device/razerdevicetype';
 import { Daylight } from './daylight';
 import { CallVoices } from './callvoices';
+import { LightLayers, CALL_PRIORITY } from './lightlayers';
 
 const SETTINGS_KEY = 'desklights';
 
@@ -39,12 +40,6 @@ const OTHER_POSITION = 0.75;
 
 // The welcome (away to working) sweeps white in from the left; this is the width of its soft edge.
 const SWEEP_EDGE = 0.35;
-
-// Claude wants you: an orange band rolls across the desk and back, three times.
-const ATTENTION_COLOR = [255, 90, 20];
-const ATTENTION_WAVE_MS = 2600;
-const ATTENTION_WAVES = 3;
-const ATTENTION_WIDTH = 0.3;
 
 // Next meeting: the keyboard's top row fills amber over the last minute (the
 // mouse warms with it), then both pulse faster and faster until a mic turns on
@@ -118,6 +113,27 @@ function crossfade(from, to, amount) {
   };
 }
 
+// A spot on the desk, for the look and the layers: `desk` is where it sits
+// across the desk; each other region it belongs to says where it sits in that
+// region (0 to 1), or null when the device shows one colour (see LightLayers).
+function keyPixel(row, col, cols) {
+  const across = (col + 0.5) / cols;
+  return { desk: KEYBOARD_LEFT + KEYBOARD_WIDTH * col / (cols - 1), keyboard: across, ...(row === 0 && { toprow: across }) };
+}
+
+function devicePixel(device) {
+  switch (device.mainType) {
+    case RazerDeviceType.KEYBOARD:
+      return { desk: KEYBOARD_LEFT + KEYBOARD_WIDTH / 2, keyboard: null, toprow: null };
+    case RazerDeviceType.MOUSE:
+      return { desk: POSITIONS[device.mainType], mouse: null };
+    case RazerDeviceType.MOUSEMAT:
+      return { desk: POSITIONS[device.mainType], mat: null };
+    default:
+      return { desk: OTHER_POSITION };
+  }
+}
+
 function keyboardGrid(device) {
   const ripple = device.mainType === RazerDeviceType.KEYBOARD && device.getFeature(FeatureIdentifier.RIPPLE);
   return ripple && ripple.configuration.rows > 0 ? ripple.configuration : null;
@@ -125,11 +141,13 @@ function keyboardGrid(device) {
 
 /**
  * Drives every Razer device as one desk. Each frame is painted from layers:
- * the current look (with any fade or sweep into it), then the keyboard's top
- * row and the mouse (meeting countdown, or camera / mic with the call's voices),
- * then the attention wave over everything. A change that
- * lands mid-animation starts from whatever is showing at that moment, so
- * overlapping Mac events redirect an animation instead of jumping.
+ * the current look (with any fade or sweep into it), then the shown layers
+ * below CALL_PRIORITY, then the keyboard's top row and the mouse (meeting
+ * countdown, or camera / mic with the call's voices), then the shown layers
+ * from CALL_PRIORITY up (the attention wave). Shown layers stay hidden while
+ * the Mac is away. A change that lands mid-animation starts from whatever is
+ * showing at that moment, so overlapping Mac events redirect an animation
+ * instead of jumping.
  */
 export class DeskLights {
   constructor(settingsManager, addon, getDevices, daylight = new Daylight()) {
@@ -139,7 +157,7 @@ export class DeskLights {
     this.daylight = daylight;
     this.voices = new CallVoices(addon);
     this.transition = null; // { from: x => colour, startedAt, duration, sweep }
-    this.attentionStartedAt = null;
+    this.layers = new LightLayers();
     this.meetings = []; // start times (ms) of nearby meetings
     this.joinedMeetings = new Set(); // starts whose countdown a mic or camera ended
     this.onAir = false; // a camera or mic is on
@@ -188,19 +206,39 @@ export class DeskLights {
       this.transition = { from: this.baseAt(now), startedAt: now, ...transitionFor(this.look.name, next.name) };
       this.look = next;
       this.lookSince = now;
-      if (next.name === 'away') {
-        this.attentionStartedAt = null;
-      }
     }
     this.render();
   }
 
-  pulse() {
-    if (!this.auto || this.look.name === 'away' || this.attentionStartedAt != null) {
-      return;
-    }
-    this.attentionStartedAt = Date.now();
+  // Shows a layer (see LightLayers.show); throws LayerError on a bad request.
+  show(spec) {
+    const layer = this.layers.show(spec, Date.now());
     this.render();
+    return layer;
+  }
+
+  // Fades a layer out; false when there is no such layer.
+  cancel(id) {
+    const found = this.layers.cancel(id, Date.now());
+    this.render();
+    return found;
+  }
+
+  status() {
+    const now = Date.now();
+    return {
+      auto: this.auto,
+      look: this.look.name,
+      topRow: this.topRowKind,
+      layersShown: this.layersShown(),
+      layers: this.layers.status(now),
+      devices: (this.getDevices() || []).map(device => ({ name: device.name, answering: !this.failing.has(device.internalId) })),
+    };
+  }
+
+  // Layers show over the look, except over the stored red.
+  layersShown() {
+    return this.auto && this.look.name !== 'away';
   }
 
   // No time to animate: the Mac is about to sleep, log out or shut down, or the app is quitting.
@@ -259,7 +297,8 @@ export class DeskLights {
     }
     const now = Date.now();
     this.noticeTopRow(now);
-    const moving = this.transition != null || this.attentionStartedAt != null || this.topRowFade != null || this.voices.listening;
+    const layers = this.layersShown();
+    const moving = this.transition != null || this.topRowFade != null || this.voices.listening || (layers && this.layers.animating(now));
     const slow = this.look.breathe || this.topRowKind != null;
     this.paint(now, !moving && !slow);
 
@@ -268,10 +307,11 @@ export class DeskLights {
       return;
     }
     // Nothing moving: sleep until the next meeting's countdown, the next daylight
-    // step or the next retry of a failing device.
+    // step, a layer starting to fade out or the next retry of a failing device.
     const daylightChange = this.look.daylight ? this.daylight.nextChange(now) : Infinity;
     const wake = Math.min(
       daylightChange <= now ? now + DAYLIGHT_STEP_MS : daylightChange,
+      layers ? this.layers.nextChange(now) : Infinity,
       ...[...this.failing.values()].map(({ retryAt }) => Math.max(retryAt, now + FRAME_GAP_MS)),
       ...this.meetings
         .filter(start => !this.joinedMeetings.has(start))
@@ -288,9 +328,15 @@ export class DeskLights {
   paint(now, settled) {
     const store = settled && this.look.store;
     const base = this.baseAt(now);
-    const wave = this.attentionAt(now);
     const topRow = this.topRowAt(now, this.voices.read(now));
-    const waved = (color, x) => (wave ? mix(color, ATTENTION_COLOR, wave(x)) : color);
+    const shown = this.layersShown();
+    const under = shown ? this.layers.painters(now, layer => layer.priority < CALL_PRIORITY) : [];
+    const over = shown ? this.layers.painters(now, layer => layer.priority >= CALL_PRIORITY) : [];
+    // `topRowAt` paints the built-in top row over a colour, when this spot shows it.
+    const colorAt = (pixel, topRowAt) => {
+      const below = under.reduce((color, paint) => paint(color, pixel), base(pixel.desk));
+      return toRgb(over.reduce((color, paint) => paint(color, pixel), topRowAt ? topRowAt(below) : below));
+    };
 
     this.addon.setSkipResponses(!settled);
     try {
@@ -300,17 +346,12 @@ export class DeskLights {
         .forEach(device => {
           const grid = keyboardGrid(device);
           if (grid == null) {
-            const x = POSITIONS[device.mainType] ?? OTHER_POSITION;
-            const color = topRow && device.mainType === RazerDeviceType.MOUSE ? topRow.whole(base(x)) : base(x);
-            this.writeColor(device, toRgb(waved(color, x)), store);
+            const mirrorsTopRow = topRow && device.mainType === RazerDeviceType.MOUSE;
+            this.writeColor(device, colorAt(devicePixel(device), mirrorsTopRow && topRow.whole), store);
             return;
           }
-          const columns = Array.from({ length: grid.cols }, (_, col) => {
-            const x = KEYBOARD_LEFT + KEYBOARD_WIDTH * col / (grid.cols - 1);
-            const color = base(x);
-            return [toRgb(waved(color, x)), toRgb(waved(topRow ? topRow.at(color, col, grid.cols) : color, x))];
-          });
-          const rows = Array.from({ length: grid.rows }, (_, row) => columns.map(([plain, topRow]) => (row === 0 ? topRow : plain)));
+          const rows = Array.from({ length: grid.rows }, (_, row) => Array.from({ length: grid.cols }, (_, col) =>
+            colorAt(keyPixel(row, col, grid.cols), row === 0 && topRow && (color => topRow.at(color, col, grid.cols)))));
           const first = rows[0][0].join();
           if (rows.every(row => row.every(rgb => rgb.join() === first))) {
             this.writeColor(device, rows[0][0], store);
@@ -423,22 +464,6 @@ export class DeskLights {
     return x => mix(from(x), target, amount);
   }
 
-  // How strongly the attention wave covers each position, or null when there is none.
-  attentionAt(now) {
-    if (this.attentionStartedAt == null) {
-      return null;
-    }
-    const elapsed = (now - this.attentionStartedAt) / ATTENTION_WAVE_MS;
-    if (elapsed >= ATTENTION_WAVES) {
-      this.attentionStartedAt = null;
-      return null;
-    }
-    const t = elapsed % 1;
-    const there = easeInOut(t < 0.5 ? t * 2 : 2 - t * 2);
-    const center = -ATTENTION_WIDTH + (1 + 2 * ATTENTION_WIDTH) * there;
-    return x => easeInOut(clamp01(1 - Math.abs(x - center) / ATTENTION_WIDTH));
-  }
-
   // What the top row (and the mouse) should show now: 'meeting', 'onAir' or null.
   topRowKindAt(now) {
     if (this.look.name === 'away') {
@@ -543,7 +568,6 @@ export class DeskLights {
   stopAnimating() {
     this.stopTimer();
     this.transition = null;
-    this.attentionStartedAt = null;
     this.topRowFade = null;
   }
 

@@ -5,6 +5,7 @@ vi.mock('electron', () => ({
 }));
 
 import { DeskLights } from '../src/main/desklights';
+import { ATTENTION } from '../src/main/lightsapi';
 import { fakeDesk, fakeSettings, fakeAddon, noDaylight, macState, RED, WHITE } from './fakes';
 
 const START = new Date('2026-06-21T12:00:00').getTime();
@@ -91,7 +92,7 @@ describe('DeskLights', () => {
     mouse().fail = true;
     const before = mouse().attempts;
     const matBefore = mat().calls.length;
-    lights.pulse();
+    lights.show(ATTENTION);
     vi.advanceTimersByTime(10 * 1000);
     expect(mouse().attempts - before).toBeLessThanOrEqual(4);
     expect(mat().calls.length - matBefore).toBeGreaterThan(30);
@@ -111,7 +112,7 @@ describe('DeskLights', () => {
     lights.update(macState());
     vi.advanceTimersByTime(2000);
     mouse().fail = true;
-    lights.pulse();
+    lights.show(ATTENTION);
     vi.advanceTimersByTime(9000); // past the end of the wave
     mouse().fail = false;
     vi.advanceTimersByTime(30 * 1000);
@@ -137,10 +138,83 @@ describe('DeskLights', () => {
   it('rolls the attention wave and then hands back', () => {
     lights.update(macState());
     vi.advanceTimersByTime(2000);
-    lights.pulse();
+    lights.show(ATTENTION);
     vi.advanceTimersByTime(900); // the band is passing the mouse
     expect(mouse().last('setModeStaticNoStore')[0]).not.toEqual(WHITE);
     vi.advanceTimersByTime(10 * 1000);
     expect(mouse().last('setModeStaticNoStore')).toEqual([WHITE]);
+  });
+
+  const topRowOf = device => device.calls.filter(([method, frame]) => method === 'setCustomFrame' && frame[0] === 0).at(-1)?.[1];
+  const keyAt = (frame, col) => frame.slice(3 + col * 3, 6 + col * 3);
+  const lastRowOf = device => device.calls.filter(([method, frame]) => method === 'setCustomFrame' && frame[0] === 5).at(-1)?.[1];
+
+  it('shows a layer on its region only, then fades it out when it ends', () => {
+    lights.update(macState());
+    vi.advanceTimersByTime(2000);
+    lights.show({ region: 'toprow', color: '#00ff00', duration: 3 });
+    vi.advanceTimersByTime(1000);
+    expect(keyAt(topRowOf(keyboard()), 0)).toEqual([0, 255, 0]);
+    expect(keyAt(lastRowOf(keyboard()), 0)).toEqual(WHITE);
+    expect(mouse().last('setModeStaticNoStore')).toEqual([WHITE]);
+    vi.advanceTimersByTime(3000);
+    expect(keyboard().last('setModeStaticNoStore')).toEqual([WHITE]);
+    expect(lights.layers.status(Date.now())).toEqual([]);
+    expect(lights.timer).toBeNull();
+  });
+
+  it('splits a region between the layers of one group, oldest on the left', () => {
+    lights.update(macState());
+    vi.advanceTimersByTime(2000);
+    lights.show({ id: 'a', region: 'toprow', color: '#ff0000', group: 'sessions', duration: 60 });
+    lights.show({ id: 'b', region: 'toprow', color: '#0000ff', group: 'sessions', duration: 60 });
+    vi.advanceTimersByTime(1000);
+    const frame = topRowOf(keyboard());
+    expect(keyAt(frame, 0)).toEqual(RED);
+    expect(keyAt(frame, 8)).toEqual(RED);
+    expect(keyAt(frame, 9)).toEqual([0, 0, 255]);
+    expect(keyAt(frame, 17)).toEqual([0, 0, 255]);
+    // An update keeps its place.
+    lights.show({ id: 'a', region: 'toprow', color: '#00ff00', group: 'sessions', duration: 60 });
+    vi.advanceTimersByTime(1000);
+    expect(keyAt(topRowOf(keyboard()), 0)).toEqual([0, 255, 0]);
+  });
+
+  it('cancels a layer early by its id', () => {
+    lights.update(macState());
+    vi.advanceTimersByTime(2000);
+    lights.show({ id: 'busy', region: 'mouse', color: '#00ff00', duration: 600 });
+    vi.advanceTimersByTime(1000);
+    expect(mouse().last('setModeStaticNoStore')).toEqual([[0, 255, 0]]);
+    expect(lights.cancel('busy')).toBe(true);
+    expect(lights.cancel('nothing')).toBe(false);
+    vi.advanceTimersByTime(1000);
+    expect(mouse().last('setModeStaticNoStore')).toEqual([WHITE]);
+  });
+
+  it('paints a higher priority over a lower one, and the call lights between them', () => {
+    lights.update(macState());
+    vi.advanceTimersByTime(2000);
+    lights.update(macState({ camera: true }));
+    lights.show({ region: 'mouse', color: '#00ff00', duration: 60, priority: 1 });
+    vi.advanceTimersByTime(3000);
+    const [underCall] = mouse().last('setModeStaticNoStore');
+    expect(underCall).not.toEqual([0, 255, 0]); // the call pulse shows over it
+    lights.show({ region: 'mouse', color: '#0000ff', duration: 60, priority: 90 });
+    vi.advanceTimersByTime(1000);
+    expect(mouse().last('setModeStaticNoStore')).toEqual([[0, 0, 255]]);
+  });
+
+  it('hides layers while the Mac is away and never stores them', () => {
+    lights.update(macState());
+    vi.advanceTimersByTime(2000);
+    lights.show({ region: 'desk', color: '#00ff00', duration: 60 });
+    lights.update(macState({ away: true }));
+    vi.advanceTimersByTime(2000);
+    devices.forEach(device => expect(device.last('setModeStatic')).toEqual([RED]));
+    expect(lights.status().layersShown).toBe(false);
+    lights.update(macState());
+    vi.advanceTimersByTime(3000);
+    expect(mat().last('setModeStaticNoStore')).toEqual([[0, 255, 0]]);
   });
 });

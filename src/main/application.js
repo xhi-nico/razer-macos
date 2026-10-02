@@ -3,6 +3,7 @@ import { app, dialog, BrowserWindow, ipcMain, Menu, nativeImage, Tray, powerMoni
 import path from 'path';
 import { getMenuFor } from './menu/menubuilder';
 import { MacSignals } from './macsignals';
+import { LightsApi } from './lightsapi';
 import addon from '../driver';
 import { clearBatteryMode } from './menu/menubuilderdevice';
 import { guard } from './guard';
@@ -174,13 +175,14 @@ export class Application {
     const { lights } = this.razerApplication;
     this.signals = new MacSignals(addon, powerMonitor);
     this.signals.on('change', state => lights.update(state));
-    this.signals.on('attention', () => lights.pulse());
     this.signals.on('sleep', () => lights.sleepNow());
     this.signals.on('devices', () => {
       clearTimeout(this.deviceSettleTimer);
       this.deviceSettleTimer = setTimeout(() => this.refreshTray(true, true), DEVICE_SETTLE_MS);
     });
     this.signals.start();
+    this.lightsApi = new LightsApi(lights);
+    this.lightsApi.start();
   }
 
   setAutoLights(on) {

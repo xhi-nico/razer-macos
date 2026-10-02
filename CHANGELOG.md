@@ -30,6 +30,9 @@ version number.
   a device in, or waking from sleep, picks up the current look. Picking a colour or effect by
   hand switches Auto off; brightness does not.
 - Warm white after sunset (from the time zone's coordinates), shifting over half an hour.
+- A local lights API on `127.0.0.1:47820`: show a colour (solid, pulse or wave) on the desk,
+  keyboard, top row, mouse or mat for a while, with a priority, an id to update or cancel it,
+  groups that split a region, and a status endpoint.
 - An attention wave (an orange band across every device and back, three times) on `POST
   127.0.0.1:47820/attention`, for Claude Code's Stop and Notification hooks.
 - Call lights on the keyboard's top row: a slow deep purple pulse while a camera or mic is on.
