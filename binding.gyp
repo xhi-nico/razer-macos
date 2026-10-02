@@ -22,6 +22,7 @@
           '-framework EventKit',
           '-framework Accelerate',
           '-framework ApplicationServices',
+          '-framework AppKit',
           '-framework Foundation'
       ],
       'xcode_settings': {
@@ -47,6 +48,7 @@
               '-framework EventKit',
               '-framework Accelerate',
               '-framework ApplicationServices',
+              '-framework AppKit',
               '-framework Foundation'
           ],
       }

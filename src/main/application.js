@@ -1,6 +1,5 @@
 import { RazerApplication } from './razerapplication';
-import { app, dialog, BrowserWindow, ipcMain, Menu, nativeImage, Tray, powerMonitor, shell } from 'electron';
-import path from 'path';
+import { app, dialog, Menu, nativeImage, Tray, powerMonitor, shell } from 'electron';
 import { getMenuFor } from './menu/menubuilder';
 import { MacSignals } from './macsignals';
 import { LightsApi, readJson } from './lightsapi';
@@ -22,7 +21,7 @@ const version = require('../../package.json').version;
 const DEVICE_SETTLE_MS = 800;
 
 /**
- * Application is a small wrapper around an electron app (browserwindow, tray, dialog...)
+ * Application is a small wrapper around an electron app (tray, dialog, colour panel...)
  * It's the entry point into the application and references the main functionality with: RazerApplication
  * @constructor
  */
@@ -30,9 +29,7 @@ export class Application {
 
   constructor(isDevelopment) {
     this.isDevelopment = isDevelopment;
-    this.forceQuit = false;
     this.tray = null;
-    this.browserWindow = null;
     this.app = app;
     this.dialog = dialog;
     this.APP_VERSION = version;
@@ -43,7 +40,7 @@ export class Application {
       app.quit();
       return;
     }
-    // Opening the app again shows its menu, the closest thing it has to a window.
+    // Opening the app again shows its menu; it has no window.
     app.on('second-instance', () => this.tray?.popUpContextMenu());
 
     this.initListeners();
@@ -55,7 +52,6 @@ export class Application {
   initListeners() {
     this.app.on('ready', () => {
       this.createTray().then(() => this.startSignals());
-      this.createWindow();
     });
 
     this.app.on('quit', () => {
@@ -63,96 +59,6 @@ export class Application {
       this.panic?.stop();
       this.razerApplication.destroy();
     });
-
-    // Settings window actions. The window holds a copy of the device from when
-    // it opened, so each resolves the live one first.
-    this.onDevice('request-set-dpi', (device, { dpi }) => device.setDPI(dpi));
-    this.onDevice('update-brightness', (device, { brightness }) => device.setBrightness(brightness));
-    this.onDevice('request-set-custom-color', (device, { device: edited }) => device.setSettings(edited.settings));
-    ['Matrix', 'Logo', 'Scroll', 'Left', 'Right'].forEach(zone => {
-      this.onDevice(`update-mouse-${zone.toLowerCase()}-brightness`, (device, { brightness }) => device[`setBrightness${zone}`](brightness));
-    });
-    this.onDevice('update-mouse-pollrate', (device, { pollRate }) => device.setPollRate(pollRate), false);
-
-    ipcMain.on('request-cycle-color', (_, { index, color }) => guard('Cycle colour', () => {
-      this.razerApplication.cycleAnimation.updateColor(index, color.rgb);
-      this.refreshTray();
-    }));
-  }
-
-  onDevice(channel, apply, refreshMenu = true) {
-    ipcMain.on(channel, (_, message) => guard(channel, () => {
-      const device = this.razerApplication.deviceManager.resolve(message.device);
-      if (device == null) {
-        console.warn(`${channel}: ${message.device?.name ?? 'the device'} is no longer attached`);
-        return;
-      }
-      apply(device, message);
-      if (refreshMenu) {
-        this.refreshTray();
-      }
-    }));
-  }
-
-  createWindow() {
-    this.browserWindow = new BrowserWindow({
-      webPreferences: { preload: path.join(__dirname, '../preload/index.js') },
-      //titleBarStyle: 'hidden',
-      height: 800, // This is adjusted later with window.setSize
-      resizable: false,
-      width: 500,
-      minWidth: 320,
-      minHeight: 320,
-      y: 100,
-      // Set the default background color of the window to match the CSS
-      // background color of the page, this prevents any white flickering
-      backgroundColor: '#202124',
-      // Don't show the window until it's ready, this prevents any white flickering
-      show: false,
-    });
-    if (this.isDevelopment) {
-      this.browserWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
-      this.browserWindow.resizable = true;
-    } else {
-      this.browserWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
-    }
-
-    // Handle window logic properly on macOS:
-    // 1. App should not terminate if window has been closed
-    // 2. Click on icon in dock should re-open the window
-    // 3. ⌘+Q should close the window and quit the app
-    this.browserWindow.on('close', (e) => {
-      if (!this.forceQuit) {
-        e.preventDefault();
-        this.browserWindow.hide();
-      }
-    });
-
-    this.app.on('activate', () => {
-      this.browserWindow.show();
-    });
-
-    this.app.on('before-quit', () => {
-      this.forceQuit = true;
-    });
-
-    if (this.isDevelopment) {
-      // auto-open dev tools
-      //this.browserWindow.webContents.openDevTools();
-
-      // add inspect element on right click menu
-      this.browserWindow.webContents.on('context-menu', (e, props) => {
-        const that = this;
-        Menu.buildFromTemplate([
-          {
-            label: 'Inspect element',
-            click() {
-              that.browserWindow.inspectElement(props.x, props.y);
-            },
-          },
-        ]).popup(this.browserWindow);
-      });
-    }
   }
 
   createTray() {
@@ -257,9 +163,12 @@ export class Application {
     });
   }
 
-  showView(args) {
-    this.browserWindow.webContents.send('render-view', args);
-    this.browserWindow.show();
+  /**
+   * Opens the macOS colour panel on `rgb`: `onPick(rgb, done)` hears every change,
+   * then once more with done when it closes. Faults are logged, not thrown.
+   */
+  pickColor(title, rgb, onPick) {
+    addon.showColorPanel(rgb, title, (picked, done) => guard(`Colour for ${title}`, () => onPick(picked, done)));
   }
 
   quit() {

@@ -13,13 +13,14 @@ export function getMenuFor(application) {
 }
 
 // Every click is guarded, so a device that fails mid-click is logged rather than
-// thrown. Any click but a checkbox's also stops the running animation first.
+// thrown. A click on an effect also stops the running animation first; settings
+// (checkboxes, presets, colour pickers) leave it running.
 function patch(deviceMenu, application) {
   deviceMenu.forEach(menuItem => {
     if (menuItem.hasOwnProperty('click')) {
       const originalClick = menuItem['click'];
       menuItem['click'] = (...args) => guard(`Menu "${menuItem.label}"`, () => {
-        if (menuItem.type !== 'checkbox') {
+        if (menuItem.type !== 'checkbox' && menuItem.type !== 'radio' && !menuItem.keepsAnimations) {
           application.razerApplication.stopAnimations();
         }
         originalClick(...args);
@@ -209,14 +210,20 @@ function getCustomColorsCycleMenu(application) {
     { type: 'separator' },
   ];
 
+  // Picked in the macOS colour panel; a running cycle shows the change as you pick.
   const colorItems = application.razerApplication.cycleAnimation.getAllColors().map((color, index) => {
     return {
-      label: 'Color ' + (index + 1),
+      label: `Color ${index + 1}…`,
+      keepsAnimations: true,
       click: () => {
-        application.showView({
-          mode: 'color',
-          index: index,
-          color: color
+        application.pickColor(`Cycle color ${index + 1}`, [color.r, color.g, color.b], ([r, g, b], done) => {
+          // A rescan rebuilds the cycle, so find the live one.
+          const cycle = application.razerApplication.cycleAnimation;
+          cycle.cycleColors[index] = { r, g, b };
+          if (done) {
+            cycle.saveSettings();
+            application.refreshTray();
+          }
         });
       },
     };

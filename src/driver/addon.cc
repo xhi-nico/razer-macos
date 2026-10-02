@@ -9,6 +9,7 @@
 #include "callaudio.h"
 #include "musicaudio.h"
 #include "keywatch.h"
+#include "colorpanel.h"
 
 extern "C"
 {
@@ -1052,6 +1053,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     InitCallAudio(env, exports);
     InitMusicAudio(env, exports);
     InitKeyWatch(env, exports);
+    InitColorPanel(env, exports);
 
     return exports;
 }

@@ -81,14 +81,14 @@ describe('RazerDeviceManager', () => {
     expect(manager.activeRazerDevices.map(device => device.productId)).toEqual([KEYBOARD]);
   });
 
-  it('finds the live device for a copy from before a rebuild', async () => {
+  it('finds the live device for one an old menu holds from before a rebuild', async () => {
     withAddon(fakeAddon([KEYBOARD, MOUSE]));
     await manager.refreshRazerDevices(true);
-    const stale = manager.activeRazerDevices[1].serialize();
+    const stale = manager.activeRazerDevices[1];
     await manager.refreshRazerDevices(true);
     const live = manager.resolve(stale);
     expect(live).toBe(manager.activeRazerDevices[1]);
-    expect(live.internalId).not.toBe(stale.internalId);
+    expect(live).not.toBe(stale);
   });
 
   it('carries on past a device that fails', async () => {

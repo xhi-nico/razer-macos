@@ -71,19 +71,4 @@ export class RazerDevice {
   setModeStatic(color) {}
   setSpectrum() {}
   setBreathe(color) {}
-
-  getSerializeIgnoredProperties() {
-    return ['addon', 'settingsManager'];
-  }
-
-  serialize() {
-    const ignoreProperties = this.getSerializeIgnoredProperties();
-    const serializedDevice = {};
-    Object.entries(this)
-      .filter(([key]) => !ignoreProperties.find(ignored => ignored === key))
-      .forEach(([key, value]) => {
-        serializedDevice[key] = value;
-      })
-    return serializedDevice;
-  }
 }

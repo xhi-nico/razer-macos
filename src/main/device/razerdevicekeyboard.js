@@ -20,10 +20,6 @@ export class RazerDeviceKeyboard extends RazerDevice {
     }
   }
 
-  getSerializeIgnoredProperties() {
-    return super.getSerializeIgnoredProperties().concat(['rippleAnimation', 'wheelAnimation']);
-  }
-
   destroy() {
     super.destroy();
     if(this.rippleAnimation != null) {

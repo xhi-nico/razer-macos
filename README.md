@@ -3,13 +3,10 @@
   <p align="center">Open source color effects manager for Razer devices on macOS</p>
 </p>
 
-<p align="center">
-  <img src="screenshots/dark.png">
-</p>
-
 - **Auto lights** Every device follows your Mac, with nothing to set up (see below)
 - **Supporting Razer devices** Keyboards, mice, mouse mats, eGPUs and blade laptops
-- **Custom color picking** Choose your own colors for static, reactive and starlight effects
+- **Everything in the menu** There is no window: custom colours open the macOS colour panel,
+  and DPI, polling rate and brightness are presets in each device's entry
 - **Persistent color settings** Color effects are saved to onboard memory
 - **Battery indicator** The Mouse Dock is lit red to green by the attached mouse's charge, and
   the mouse's menu entry shows its charge, with a lightning bolt while charging

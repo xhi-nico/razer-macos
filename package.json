@@ -10,34 +10,26 @@
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "rm -rf out && electron-vite build",
     "test": "vitest run",
     "dist": "yarn build && electron-builder",
     "dist:dir": "yarn dist --dir -c.compression=store -c.mac.identity=null",
     "rebuild": "node-gyp rebuild",
     "clean": "node-gyp clean",
-    "prettier:js": "prettier --write \"src/{main,renderer}/**/*.{js,jsx}\""
+    "prettier:js": "prettier --write \"src/main/**/*.js\""
   },
   "dependencies": {
     "electron-json-storage": "^4.6.0",
     "node-addon-api": "^8.9.2",
-    "react": "^18.3.1",
-    "react-color": "^2.19.3",
-    "react-dom": "^18.3.1",
-    "react-select": "^5.10.2",
-    "react-slider": "^2.0.6",
-    "react-tabs": "^6.1.1",
     "tinycolor2": "^1.6.0",
     "uiohook-napi": "^1.5.5"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^6.1.0",
     "electron": "^44.0.0",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "node-gyp": "^11.4.2",
     "prettier": "^3.6.2",
-    "prop-types": "^15.8.1",
     "vite": "^8.2.2",
     "vitest": "^4.1.11"
   },

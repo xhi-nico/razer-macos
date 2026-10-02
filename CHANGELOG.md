@@ -71,7 +71,7 @@ version number.
 
 - A crash after any device rescan: the native layer kept the freed device list, so the next
   menu click, settings change or tray click on an old device read freed memory. Old devices now
-  throw an error that is logged, and the settings window finds the live device.
+  throw an error that is logged, and a menu built before the rescan finds the live device.
 - Two rescans at once (a replug during a refresh) left the devices open twice, so the second
   could not open them. Rescans now run one at a time and close the old devices first.
 - A device that stops answering is skipped and retried on its own (1 second, doubling to 30),
@@ -88,6 +88,10 @@ version number.
 
 ### Changed
 
+- The settings window is gone; everything is in the menu. Custom colours (and the Cycle colours)
+  open the macOS colour panel and are saved when it closes; DPI, polling rate and brightness are
+  presets, with the current value among them. React and its UI libraries are no longer
+  dependencies, and no hidden browser window runs in the background.
 - Migrated the build from `electron-webpack` to `electron-vite`. `electron-webpack` was
   archived in 2021 and deadlocks on current Node, which made the project unbuildable on this
   machine; `electron-vite` builds it in under a second. This also removes the `node-gyp`

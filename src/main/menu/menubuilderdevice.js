@@ -1,8 +1,19 @@
 import { FeatureIdentifier } from '../feature/featureidentifier';
 import { RazerDeviceType } from '../device/razerdevicetype';
 
-// Brightness scales whatever Auto lights shows, so it leaves Auto on.
-const BRIGHTNESS_FEATURES = [FeatureIdentifier.BRIGHTNESS, FeatureIdentifier.MOUSE_BRIGHTNESS];
+// Brightness scales whatever Auto lights shows, and DPI and polling rate are not
+// lighting, so these leave Auto on.
+const LEAVES_LIGHTS = [FeatureIdentifier.BRIGHTNESS, FeatureIdentifier.MOUSE_BRIGHTNESS, FeatureIdentifier.MOUSE_DPI, FeatureIdentifier.POLL_RATE];
+
+const BRIGHTNESS_PRESETS = [0, 25, 50, 75, 100];
+const DPI_PRESETS = [400, 800, 1200, 1600, 2400, 3200, 4800, 6400];
+
+// Presets as radio items, with the current value among them even when it is not a preset.
+function presetItems(presets, current, label, apply) {
+  return [...new Set([...presets, current].filter(Number.isFinite))]
+    .sort((a, b) => a - b)
+    .map(value => ({ label: label(value), type: 'radio', checked: value === current, click: () => apply(value) }));
+}
 
 /**
  * Picking a colour or effect by hand switches Auto lights off, so the next Mac
@@ -32,11 +43,10 @@ export function getDeviceMenuFor(application, razerDevice) {
   const featureMenu = razerDevice.features
     .map(feature => {
       const item = getFeatureMenuFor(application, razerDevice, feature);
-      return item != null && !BRIGHTNESS_FEATURES.includes(feature.featureIdentifier) ? takesOverLights(application, item) : item;
+      return item != null && !LEAVES_LIGHTS.includes(feature.featureIdentifier) ? takesOverLights(application, item) : item;
     })
     .filter(item => item != null);
-  deviceMenu = deviceMenu.concat(featureMenu);
-  return deviceMenu;
+  return deviceMenu.concat(featureMenu, getCustomColorItems(application, razerDevice));
 }
 
 function getHeaderFor(application, razerDevice) {
@@ -74,12 +84,7 @@ function getHeaderFor(application, razerDevice) {
   return {
     label: label,
     icon: icon,
-    click() {
-      application.showView({
-        mode: 'device',
-        device: razerDevice.serialize(),
-      });
-    },
+    enabled: false,
   };
 }
 
@@ -112,9 +117,9 @@ function getFeatureMenuFor(application, device, feature) {
     case FeatureIdentifier.MOUSE_BRIGHTNESS:
       return getFeatureMouseBrightness(application, device, feature);
     case FeatureIdentifier.POLL_RATE:
-      return null;
+      return getFeaturePollRate(application, device, feature);
     case FeatureIdentifier.MOUSE_DPI:
-      return null;
+      return getFeatureDpi(application, device, feature);
     case FeatureIdentifier.BATTERY:
       return getFeatureBatteryLevel(application, device, feature);
     default:
@@ -255,32 +260,74 @@ function getFeatureBreath(application, device, feature) {
 }
 
 function getFeatureBrightness(application, device, feature) {
-  const updateBrightness = (brightness) => {
-    device.setBrightness(brightness);
-    application.refreshTray();
-  };
-
   return {
-    label: 'Brightness',
-    submenu: [
-      {
-        label: `Brightness: ${device.getBrightness()}%`,
-      },
-      { type: 'separator' },
-      {
-        label: 'Set to 0%',
-        click() {
-          updateBrightness(0);
-        },
-      },
-      {
-        label: 'Set to 100%',
-        click() {
-          updateBrightness(100);
-        },
-      },
-    ],
+    label: `Brightness: ${device.getBrightness()}%`,
+    submenu: presetItems(BRIGHTNESS_PRESETS, device.getBrightness(), value => `${value}%`, value => {
+      device.setBrightness(value);
+      application.refreshTray();
+    }),
   };
+}
+
+function getFeatureDpi(application, device, feature) {
+  const { min, max } = feature.configuration;
+  return {
+    label: `DPI: ${device.getDPI()}`,
+    submenu: presetItems(DPI_PRESETS.filter(dpi => dpi >= min && dpi <= max), device.getDPI(), String, value => {
+      device.setDPI(value);
+      application.refreshTray();
+    }),
+  };
+}
+
+function getFeaturePollRate(application, device, feature) {
+  return {
+    label: `Polling rate: ${device.getPollRate()} Hz`,
+    submenu: presetItems(feature.configuration.pollRates, device.getPollRate(), value => `${value} Hz`, value => {
+      device.setPollRate(value);
+      application.refreshTray();
+    }),
+  };
+}
+
+const toHex = rgb => `#${rgb.map(c => c.toString(16).padStart(2, '0')).join('')}`;
+
+/**
+ * The custom colours that the Custom colour effects use, picked in the macOS
+ * colour panel. A device that only shows some of red, green and blue gets the
+ * rest dropped. The pick is saved when the panel closes.
+ */
+function getCustomColorItems(application, device) {
+  const staticFeature = device.getFeature(FeatureIdentifier.STATIC);
+  if (!device.settings?.customColor1 || !staticFeature) {
+    return [];
+  }
+  const { enabledRed, enabledGreen, enabledBlue } = staticFeature.configuration;
+  const shown = [enabledRed, enabledGreen, enabledBlue];
+  const item = (key, label) => ({
+    label,
+    keepsAnimations: true,
+    click() {
+      const { r, g, b } = device.settings[key].rgb;
+      application.pickColor(`${device.name}: ${label.replace('…', '')}`, [r, g, b], (picked, done) => {
+        if (!done) {
+          return;
+        }
+        const live = application.razerApplication.deviceManager.resolve(device);
+        if (live == null) {
+          return;
+        }
+        const rgb = picked.map((channel, i) => (shown[i] ? channel : 0));
+        live.settings[key] = { hex: toHex(rgb), rgb: { r: rgb[0], g: rgb[1], b: rgb[2] } };
+        live.setSettings(live.settings);
+        application.refreshTray();
+      });
+    },
+  });
+  return [
+    item('customColor1', 'Custom color…'),
+    ...(device.settings.customColor2 ? [item('customColor2', 'Second custom color…')] : []),
+  ];
 }
 
 function getFeatureNone(application, device, feature) {
@@ -591,100 +638,30 @@ function getFeatureWaveSimple(application, device, feature) {
 }
 
 function getFeatureMouseBrightness(application, device, feature) {
-
-  const submenu = [
-    feature.configuration.enabledMatrix ? {
-      label: 'All (' + device.getBrightnessMatrix() + '%)',
-      submenu: [
-        {
-          label: '0%', click() {
-            device.setBrightnessMatrix(0);
-            application.refreshTray();
-          },
-        },
-        {
-          label: '100%', click() {
-            device.setBrightnessMatrix(100);
-            application.refreshTray();
-          },
-        },
-      ],
-    } : null,
-    feature.configuration.enabledLogo ? {
-      label: 'Logo (' + device.getBrightnessLogo() + '%)',
-      submenu: [
-        {
-          label: '0%', click() {
-            device.setBrightnessLogo(0);
-            application.refreshTray();
-          },
-        },
-        {
-          label: '100%', click() {
-            device.setBrightnessLogo(100);
-            application.refreshTray();
-          },
-        },
-      ],
-    } : null,
-    feature.configuration.enabledScroll ?
-      {
-        label: 'Scroll (' + device.getBrightnessScroll() + '%)',
-        submenu: [
-          {
-            label: '0%', click() {
-              device.setBrightnessScroll(0);
-              application.refreshTray();
-            },
-          },
-          {
-            label: '100%', click() {
-              device.setBrightnessScroll(100);
-              application.refreshTray();
-            },
-          },
-        ],
-      } : null,
-    feature.configuration.enabledLeft ?
-      {
-        label: 'Left (' + device.getBrightnessLeft() + '%)',
-        submenu: [
-          {
-            label: '0%', click() {
-              device.setBrightnessLeft(0);
-              application.refreshTray();
-            },
-          },
-          {
-            label: '100%', click() {
-              device.setBrightnessLeft(100);
-              application.refreshTray();
-            },
-          },
-        ],
-      } : null,
-    feature.configuration.enabledRight ?
-      {
-        label: 'Right (' + device.getBrightnessRight() + '%)',
-        submenu: [
-          {
-            label: '0%', click() {
-              device.setBrightnessRight(0);
-              application.refreshTray();
-            },
-          },
-          {
-            label: '100%', click() {
-              device.setBrightnessRight(100);
-              application.refreshTray();
-            },
-          },
-        ],
-      } : null,
-  ];
-
-  return {
-    label: 'Brightness',
-    submenu: submenu.filter(s => s != null),
+  const zone = (enabled, label, zoneName) => {
+    if (!enabled) {
+      return null;
+    }
+    const current = device[`getBrightness${zoneName}`]();
+    return {
+      label: `${label}: ${current}%`,
+      submenu: presetItems(BRIGHTNESS_PRESETS, current, value => `${value}%`, value => {
+        device[`setBrightness${zoneName}`](value);
+        application.refreshTray();
+      }),
+    };
   };
+  const { enabledMatrix, enabledLogo, enabledScroll, enabledLeft, enabledRight } = feature.configuration;
+  const zones = [
+    zone(enabledMatrix, 'All', 'Matrix'),
+    zone(enabledLogo, 'Logo', 'Logo'),
+    zone(enabledScroll, 'Scroll wheel', 'Scroll'),
+    zone(enabledLeft, 'Left side', 'Left'),
+    zone(enabledRight, 'Right side', 'Right'),
+  ].filter(item => item != null);
+  // One zone needs no submenu of its own.
+  if (zones.length === 1) {
+    return { ...zones[0], label: zones[0].label.replace(/^All/, 'Brightness') };
+  }
+  return { label: 'Brightness', submenu: zones };
 }
