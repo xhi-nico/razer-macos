@@ -45,7 +45,7 @@ const OTHER_POSITION = 0.75;
 const SWEEP_EDGE = 0.35;
 
 // Claude needs you: an orange band rolls across the keyboard and back, three times, over the
-// call lights, and the mouse flashes orange each time the band turns at the keyboard's right end.
+// call lights, flowing on into the mouse each time it rolls off the keyboard's right end.
 export const ATTENTION = {
   id: 'attention',
   region: 'keyboard',

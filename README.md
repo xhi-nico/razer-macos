@@ -91,7 +91,7 @@ curl -s -X POST -H 'X-Desk-Lights: 1' http://127.0.0.1:47820/show \
 |---|---|---|
 | `color` | `"#rrggbb"` or `[r, g, b]`, or a list of up to 8, spread across the region as a gradient | required |
 | `region` | `desk`, `keyboard`, `toprow`, `mouse`, `mat` | `desk` |
-| `effect` | `solid`; `pulse` (breathes once per `period`); `wave` (a band rolls across the region and back once per `period`); `flash` (a quick blink halfway through each `period`, as a `wave` of the same period turns at the far end); `bars` (each spot lit by its bar in `levels`) | `solid` |
+| `effect` | `solid`; `pulse` (breathes once per `period`); `wave` (a band rolls across the region and back once per `period`); `flash` (the next stop past a `wave` of the same period: lights as the band rolls off the far end, brightest as it turns); `bars` (each spot lit by its bar in `levels`) | `solid` |
 | `levels` | for `bars`: 1 to 64 numbers from 0 to 1, spread across the region; post again with the same `id` to move them | none |
 | `dim` | how much to darken what is under the layer, 0 to 1 | `0` |
 | `duration` | seconds, up to 12 hours | `10` |
@@ -108,15 +108,15 @@ the reason. Layers ease in and out.
 - `GET /status` shows the current look, every layer with its seconds left, which devices answer,
   and each mouse's charge.
 - `POST /attention` rolls an orange band across the keyboard and back three times, over the
-  call lights, and flashes the mouse orange each time the band turns at the keyboard's right
-  end; a second one while it rolls is ignored.
+  call lights, flowing on into the mouse each time it rolls off the keyboard's right end; a
+  second one while it rolls is ignored.
 - `POST /claude-code` takes Claude Code's hook JSON (below).
 
 ## Claude Code on the keyboard
 
 The desk stays out of Claude Code's way until a session is blocked on you: a permission
 prompt, a question, a plan to approve, or an MCP server asking for input. Then the attention
-wave rolls (orange across the keyboard, the mouse flashing in step), and again every minute
+wave rolls (orange across the keyboard and on into the mouse), and again every minute
 until you answer. Working, thinking and finished replies show nothing. Claude Code raises a
 permission prompt to its hooks only after about 6 seconds unanswered, so a prompt you answer
 straight away never lights up; a question does at once.

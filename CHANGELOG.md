@@ -33,8 +33,8 @@ version number.
 - A local lights API on `127.0.0.1:47820`: show a colour (solid, pulse, wave or flash) on the desk,
   keyboard, top row, mouse or mat for a while, with a priority, an id to update or cancel it,
   groups that split a region, and a status endpoint.
-- An attention wave (an orange band across the keyboard and back, three times, the mouse
-  flashing each time it turns) on `POST 127.0.0.1:47820/attention`.
+- An attention wave (an orange band across the keyboard, on into the mouse and back, three
+  times) on `POST 127.0.0.1:47820/attention`.
 - Claude Code: the attention wave rolls when a session is blocked on you (a permission prompt,
   a question, a plan to approve), and again every minute until you answer. Fed by Claude
   Code's hooks posting to `/claude-code`.

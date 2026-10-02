@@ -18,10 +18,11 @@ const MAX_COLORS = 8;
 const MAX_LEVELS = 64;
 const BLACK = [0, 0, 0];
 // A pulse breathes once per period; a wave rolls across its region and back once per period;
-// a flash blinks halfway through each period, as a wave of the same period turns at the far end.
+// a flash is a wave's next stop past the far end: it lights as a wave of the same period
+// rolls off that end, brightest as the wave turns, and fades as it rolls back.
 const DEFAULT_PERIOD = { pulse: 2, wave: 2.6, flash: 2.6 };
 const WAVE_WIDTH = 0.3;
-const FLASH_HALF_MS = 180;
+const PAST_THE_END = 1 + WAVE_WIDTH;
 // Layers ease in and out rather than cutting.
 const FADE_IN_MS = 200;
 const FADE_OUT_MS = 400;
@@ -146,15 +147,12 @@ function effectAmount(layer, elapsed, at, levels) {
   if (layer.effect === 'pulse') {
     return 0.5 - 0.5 * Math.cos(2 * Math.PI * elapsed / layer.periodMs);
   }
-  if (layer.effect === 'flash') {
-    const fromMiddle = Math.abs((elapsed % layer.periodMs) - layer.periodMs / 2);
-    return easeInOut(clamp01(1 - fromMiddle / FLASH_HALF_MS));
-  }
-  if (layer.effect === 'wave') {
+  if (layer.effect === 'wave' || layer.effect === 'flash') {
     const t = (elapsed / layer.periodMs) % 1;
     const there = easeInOut(t < 0.5 ? t * 2 : 2 - t * 2);
     const center = -WAVE_WIDTH + (1 + 2 * WAVE_WIDTH) * there;
-    return easeInOut(clamp01(1 - Math.abs(at - center) / WAVE_WIDTH));
+    const spot = layer.effect === 'flash' ? PAST_THE_END : at;
+    return easeInOut(clamp01(1 - Math.abs(spot - center) / WAVE_WIDTH));
   }
   return 1;
 }
