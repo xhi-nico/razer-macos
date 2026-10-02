@@ -66,6 +66,10 @@ function getHeaderFor(application, razerDevice) {
     case RazerDeviceType.ACCESSORY:
       break;
   }
+  // Auto lights retries it on its own, and the label clears when it answers again.
+  if (application.razerApplication.lights.isFailing(razerDevice)) {
+    label = label + ' - ⚠️ not answering';
+  }
 
   return {
     label: label,

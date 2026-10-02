@@ -48,6 +48,8 @@ version number.
 - `librazermacos`: `razer_set_skip_responses`, so lighting frames are sent without waiting
   for each device's reply (55ms to 6ms per frame across a keyboard, mouse and mat).
 
+- A device that stops answering shows "⚠️ not answering" next to its name in the menu, until
+  it recovers.
 - A log file, `~/Library/Logs/Razer macOS/main.log`, opened from **About > Open Log**. Uncaught
   errors are logged instead of stopping at an error dialog, and native crashes leave a local
   crash report.

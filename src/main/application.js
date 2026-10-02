@@ -174,6 +174,7 @@ export class Application {
 
   startSignals() {
     const { lights } = this.razerApplication;
+    lights.onHealthChange = () => this.refreshTray();
     this.signals = new MacSignals(addon, powerMonitor);
     this.signals.on('change', state => lights.update(state));
     this.signals.on('sleep', () => lights.sleepNow());

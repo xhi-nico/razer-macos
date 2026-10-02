@@ -333,7 +333,8 @@ A: Use the "Refresh Device List" option, which can be found when pressing the Ra
 Q: Something went wrong. Where do I look?
 
 A: **About > Open Log** in the menu opens `~/Library/Logs/Razer macOS/main.log`. A device that
-stops answering is logged there, retried on its own, and logged again when it recovers. If the
+stops answering while Auto lights is on shows "⚠️ not answering" next to its name in the menu;
+it is logged, retried on its own, and the mark clears when it recovers. If the
 app itself crashed, macOS keeps a report in `~/Library/Application Support/Razer macOS/Crashpad`;
 nothing is uploaded.
 

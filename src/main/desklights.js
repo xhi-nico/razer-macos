@@ -167,6 +167,7 @@ export class DeskLights {
     this.topRowFade = null; // { from: layer, startedAt }
     this.written = new Map(); // device -> what it last showed, to skip repeats
     this.failing = new Map(); // device -> { retryAt, delay } while its writes fail
+    this.onHealthChange = () => {}; // a device stopped or started answering
     this.holds = 0; // refreshes in flight
     this.timer = null;
     this.rechecks = [];
@@ -232,7 +233,7 @@ export class DeskLights {
       topRow: this.topRowKind,
       layersShown: this.layersShown(),
       layers: this.layers.status(now),
-      devices: (this.getDevices() || []).map(device => ({ name: device.name, answering: !this.failing.has(device.internalId) })),
+      devices: (this.getDevices() || []).map(device => ({ name: device.name, answering: !this.isFailing(device) })),
     };
   }
 
@@ -258,6 +259,8 @@ export class DeskLights {
     }
     this.auto = on;
     this.stopAnimating();
+    // Only Auto lights writes often enough to notice a device not answering.
+    this.clearFailing();
     this.followVoices();
     this.save();
     if (on) {
@@ -278,7 +281,7 @@ export class DeskLights {
     this.holds = Math.max(0, this.holds - 1);
     if (rebuilt) {
       this.written.clear();
-      this.failing.clear();
+      this.clearFailing();
       this.rechecks.forEach(clearTimeout);
       this.rechecks = DEVICE_RECHECK_MS.map(delay =>
         setTimeout(() => {
@@ -421,6 +424,7 @@ export class DeskLights {
       write();
       if (this.failing.delete(id)) {
         console.log(`Lights: ${device.name} is answering again`);
+        this.onHealthChange();
       }
     } catch (error) {
       // What it shows is unknown now, so the retry must write even a frame that
@@ -428,10 +432,23 @@ export class DeskLights {
       this.written.delete(id);
       const failing = this.failing.get(id);
       const delay = failing ? Math.min(failing.delay * 2, RETRY_MAX_MS) : RETRY_FIRST_MS;
+      this.failing.set(id, { retryAt: Date.now() + delay, delay });
       if (!failing) {
         console.warn(`Lights: ${device.name} did not take the frame, retrying on its own:`, error?.message ?? error);
+        this.onHealthChange();
       }
-      this.failing.set(id, { retryAt: Date.now() + delay, delay });
+    }
+  }
+
+  // Whether this device is failing its writes right now (see attempt).
+  isFailing(device) {
+    return this.failing.has(device.internalId);
+  }
+
+  clearFailing() {
+    if (this.failing.size > 0) {
+      this.failing.clear();
+      this.onHealthChange();
     }
   }
 

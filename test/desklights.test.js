@@ -217,4 +217,21 @@ describe('DeskLights', () => {
     vi.advanceTimersByTime(3000);
     expect(mat().last('setModeStaticNoStore')).toEqual([[0, 255, 0]]);
   });
+
+  it('reports a device that stops answering once, and again once it recovers', () => {
+    const health = vi.fn();
+    lights.onHealthChange = health;
+    lights.update(macState());
+    vi.advanceTimersByTime(2000);
+    mouse().fail = true;
+    lights.show(ATTENTION);
+    vi.advanceTimersByTime(5000);
+    expect(health).toHaveBeenCalledTimes(1);
+    expect(lights.isFailing(mouse())).toBe(true);
+    expect(lights.isFailing(mat())).toBe(false);
+    mouse().fail = false;
+    vi.advanceTimersByTime(30 * 1000);
+    expect(health).toHaveBeenCalledTimes(2);
+    expect(lights.isFailing(mouse())).toBe(false);
+  });
 });
