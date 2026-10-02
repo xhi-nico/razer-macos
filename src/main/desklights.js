@@ -8,13 +8,15 @@ const SETTINGS_KEY = 'desklights';
 /**
  * What the desk shows, most important first: the first look whose condition
  * holds wins, so overlapping Mac states can never fight. `store` also writes the
- * colour into the devices' own memory, which is what they keep showing while
- * the app is not running: red at the login screen after logout or shutdown.
+ * colour into the devices' own memory, which they show the moment they get
+ * power, before the app can reach them. Only red is stored, so a desk that
+ * powers up without the Mac (docking a locked or sleeping Mac, the login screen,
+ * the app not running) is red until the app says otherwise.
  */
 const LOOKS = [
   { name: 'away', color: [255, 0, 0], store: true, when: state => state.away },
   { name: 'idle', color: [255, 255, 255], breathe: true, daylight: true, when: state => state.idle },
-  { name: 'working', color: [255, 255, 255], store: true, daylight: true, when: () => true },
+  { name: 'working', color: [255, 255, 255], daylight: true, when: () => true },
 ];
 
 // After sunset the daylight looks shift to this warm white, and back after sunrise.
@@ -64,6 +66,10 @@ const VOICE_COLOR = [239, 0, 142];
 // When the top row changes what it shows (a call starts or ends, the countdown
 // gives way), it crossfades over this long.
 const TOP_ROW_FADE_MS = 500;
+
+// After devices connect, paint them again at these delays: a device still
+// starting up can miss the first write.
+const DEVICE_RECHECK_MS = [2000, 6000];
 
 // Pause between frames: short for moving effects, longer for slow ones so an
 // idle desk or an hour-long call costs little.
@@ -138,6 +144,7 @@ export class DeskLights {
     this.written = new Map(); // device -> what it last showed, to skip repeats
     this.holds = 0; // refreshes in flight
     this.timer = null;
+    this.rechecks = [];
 
     let saved = {};
     try {
@@ -226,6 +233,13 @@ export class DeskLights {
     this.holds = Math.max(0, this.holds - 1);
     if (rebuilt) {
       this.written.clear();
+      this.rechecks.forEach(clearTimeout);
+      this.rechecks = DEVICE_RECHECK_MS.map(delay =>
+        setTimeout(() => {
+          this.written.clear();
+          this.render();
+        }, delay),
+      );
     }
     this.render();
   }
@@ -239,7 +253,7 @@ export class DeskLights {
     this.noticeTopRow(now);
     const moving = this.transition != null || this.attentionStartedAt != null || this.topRowFade != null || this.voices.listening;
     const slow = this.look.breathe || this.topRowKind != null;
-    this.paint(now, !moving && !slow && this.look.store);
+    this.paint(now, !moving && !slow);
 
     if (moving || slow) {
       this.timer = setTimeout(() => this.render(), moving ? FRAME_GAP_MS : SLOW_FRAME_GAP_MS);
@@ -259,14 +273,16 @@ export class DeskLights {
     }
   }
 
-  paint(now, store) {
+  // A settled frame must land, so it waits for each device's reply; the look's
+  // settled frame is also stored when the look says so.
+  paint(now, settled) {
+    const store = settled && this.look.store;
     const base = this.baseAt(now);
     const wave = this.attentionAt(now);
     const topRow = this.topRowAt(now, this.voices.read(now));
     const waved = (color, x) => (wave ? mix(color, ATTENTION_COLOR, wave(x)) : color);
 
-    // Frames along the way need not land; only the settled, stored colour must.
-    this.addon.setSkipResponses(!store);
+    this.addon.setSkipResponses(!settled);
     try {
       (this.getDevices() || [])
         .filter(device => device.hasFeature(FeatureIdentifier.STATIC))
