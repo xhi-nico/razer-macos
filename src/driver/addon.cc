@@ -7,6 +7,7 @@
 #include "macsignals.h"
 #include "calendar.h"
 #include "callaudio.h"
+#include "musicaudio.h"
 
 extern "C"
 {
@@ -1048,6 +1049,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     InitMacSignals(env, exports);
     InitCalendar(env, exports);
     InitCallAudio(env, exports);
+    InitMusicAudio(env, exports);
 
     return exports;
 }

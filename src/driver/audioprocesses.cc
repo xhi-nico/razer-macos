@@ -23,6 +23,15 @@ std::vector<AudioObjectID> otherAppsRecording() {
     return recording;
 }
 
+bool otherAppsPlaying() {
+    for (AudioObjectID process : otherAudioProcesses()) {
+        if (readAudioValue<UInt32>(process, kAudioProcessPropertyIsRunningOutput, 0)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::string audioProcessBundleId(AudioObjectID process) {
     CFStringRef bundleId = readAudioValue<CFStringRef>(process, kAudioProcessPropertyBundleID, NULL);
     if (bundleId == NULL) {

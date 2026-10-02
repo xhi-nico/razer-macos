@@ -36,5 +36,8 @@ std::vector<AudioObjectID> otherAudioProcesses();
 // The other apps recording from a microphone right now.
 std::vector<AudioObjectID> otherAppsRecording();
 
+// Whether any other app is playing audio right now (possibly silence).
+bool otherAppsPlaying();
+
 // A process's bundle ID, or "" for one without (a command-line tool).
 std::string audioProcessBundleId(AudioObjectID process);

@@ -48,6 +48,9 @@ version number.
 - `librazermacos`: `razer_set_skip_responses`, so lighting frames are sent without waiting
   for each device's reply (55ms to 6ms per frame across a keyboard, mouse and mat).
 
+- A music visualiser on the keyboard's top row while the Mac plays sound and no call is on: the
+  row dims and each key lights with one band of the spectrum. The lights API gains `bars`
+  (levels across a region), colour gradients and `dim`.
 - A wireless mouse under 15% that is not charging pulses amber.
 - A device that stops answering shows "⚠️ not answering" next to its name in the menu, until
   it recovers.

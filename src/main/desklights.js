@@ -212,8 +212,8 @@ export class DeskLights {
   }
 
   // Shows a layer (see LightLayers.show); throws LayerError on a bad request.
-  show(spec) {
-    const layer = this.layers.show(spec, Date.now());
+  show(spec, source) {
+    const layer = this.layers.show(spec, Date.now(), source);
     this.render();
     return layer;
   }

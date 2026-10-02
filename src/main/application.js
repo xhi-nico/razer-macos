@@ -6,6 +6,7 @@ import { MacSignals } from './macsignals';
 import { LightsApi, readJson } from './lightsapi';
 import { ClaudeCodeSessions } from './claudecode';
 import { BatteryWatch } from './battery';
+import { MusicVisualiser } from './music';
 import addon from '../driver';
 import { clearBatteryMode } from './menu/menubuilderdevice';
 import { guard } from './guard';
@@ -57,6 +58,7 @@ export class Application {
     });
 
     this.app.on('quit', () => {
+      this.music?.stop();
       this.razerApplication.destroy();
     });
 
@@ -193,6 +195,8 @@ export class Application {
     this.lightsApi.start();
     this.battery = new BatteryWatch(lights, () => this.razerApplication.deviceManager.activeRazerDevices);
     this.battery.start();
+    this.music = new MusicVisualiser(lights, addon);
+    this.music.start();
   }
 
   setAutoLights(on) {

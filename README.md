@@ -56,6 +56,14 @@ microphone turns on (you joined) or three minutes pass. A meeting is a timed eve
 with other attendees that you have not declined. macOS asks once for Calendar access; the
 development build (`yarn dev`) cannot ask, so the countdown only runs in the packaged app.
 
+**Music.** While the Mac plays sound and no camera or microphone is on, the keyboard's top row
+dims and becomes a spectrum: each key is one band, bass on the left, lit from violet through
+blue to cyan by how loud it is. It hands back after three seconds of silence, and a call
+takes over the row at once. Claude Code's segments wait under it; a session that starts
+waiting still rolls the attention wave across. It listens to everything the Mac plays, so macOS
+shows its system audio recording indicator while it runs (the same permission as the call
+meter, macOS 14.2 or later). Only the spectrum is measured; nothing is recorded.
+
 **Low battery.** A wireless mouse under 15% that is not charging pulses amber, until it is
 plugged in or charged. The charge is read every two minutes. On its cable the Pro Click V2
 Vertical reports itself as charging, so it never pulses there.
@@ -74,9 +82,11 @@ curl -s -X POST -H 'X-Desk-Lights: 1' http://127.0.0.1:47820/show \
 
 | Field | Values | Default |
 |---|---|---|
-| `color` | `"#rrggbb"` or `[r, g, b]` | required |
+| `color` | `"#rrggbb"` or `[r, g, b]`, or a list of up to 8, spread across the region as a gradient | required |
 | `region` | `desk`, `keyboard`, `toprow`, `mouse`, `mat` | `desk` |
-| `effect` | `solid`; `pulse` (breathes once per `period`); `wave` (a band rolls across the region and back once per `period`) | `solid` |
+| `effect` | `solid`; `pulse` (breathes once per `period`); `wave` (a band rolls across the region and back once per `period`); `bars` (each spot lit by its bar in `levels`) | `solid` |
+| `levels` | for `bars`: 1 to 64 numbers from 0 to 1, spread across the region; post again with the same `id` to move them | none |
+| `dim` | how much to darken what is under the layer, 0 to 1 | `0` |
 | `duration` | seconds, up to 12 hours | `10` |
 | `period` | seconds per pulse or wave | `2`, wave `2.6` |
 | `priority` | higher paints over lower; the call lights and meeting countdown sit at `50` | `10` |

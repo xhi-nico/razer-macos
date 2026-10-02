@@ -4,7 +4,7 @@ import { LightLayers, parseLayer } from '../src/main/lightlayers';
 describe('LightLayers', () => {
   it('fills in the defaults', () => {
     expect(parseLayer({ color: '#FF8800' })).toEqual({
-      id: null, region: 'desk', effect: 'solid', color: [255, 136, 0],
+      id: null, region: 'desk', effect: 'solid', colors: [[255, 136, 0]], levels: null, dim: 0,
       durationMs: 10000, periodMs: 1000, priority: 10, group: null,
     });
     expect(parseLayer({ color: [1, 2, 3], effect: 'pulse' }).periodMs).toBe(2000);
@@ -74,5 +74,23 @@ describe('LightLayers updates', () => {
     expect(shown(2250)(layers)).toEqual([100, 0, 100]);
     expect(shown(2500)(layers)).toEqual([0, 0, 200]);
     expect(layers.animating(2600)).toBe(false);
+  });
+});
+
+describe('LightLayers bars', () => {
+  it('spreads a gradient and the levels across the region, over a dimmed colour', () => {
+    const layers = new LightLayers();
+    layers.show({ color: ['#000000', '#ff0000'], effect: 'bars', levels: [0, 1], dim: 0.5 }, 0);
+    const [paint] = layers.painters(1000, () => true);
+    expect(paint([200, 200, 200], { desk: 0.1 })).toEqual([100, 100, 100]); // empty bar: just dimmed
+    expect(paint([200, 200, 200], { desk: 1 })).toEqual([255, 0, 0]); // full bar at the red end
+    expect(layers.status(1000)[0].color).toEqual(['#000000', '#ff0000']);
+  });
+
+  it('needs levels', () => {
+    const layers = new LightLayers();
+    expect(() => layers.show({ color: '#ffffff', effect: 'bars' }, 0)).toThrow(/levels/);
+    expect(() => layers.show({ color: '#ffffff', effect: 'bars', levels: [2] }, 0)).toThrow(/levels/);
+    expect(layers.show({ color: '#ffffff', effect: 'bars' }, 0, () => [1]).effect).toBe('bars');
   });
 });

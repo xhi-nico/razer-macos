@@ -20,6 +20,7 @@
           '-framework CoreGraphics',
           '-framework CoreAudio',
           '-framework EventKit',
+          '-framework Accelerate',
           '-framework Foundation'
       ],
       'xcode_settings': {
@@ -43,6 +44,7 @@
               '-framework CoreGraphics',
               '-framework CoreAudio',
               '-framework EventKit',
+              '-framework Accelerate',
               '-framework Foundation'
           ],
       }
