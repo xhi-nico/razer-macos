@@ -91,11 +91,11 @@ describe('DeskLights', () => {
     // 1, 2 and 4 seconds rather than 30 times a second.
     mouse().fail = true;
     const before = mouse().attempts;
-    const matBefore = mat().calls.length;
-    lights.show(ATTENTION);
+    const keyboardBefore = keyboard().calls.length;
+    lights.attention();
     vi.advanceTimersByTime(10 * 1000);
     expect(mouse().attempts - before).toBeLessThanOrEqual(4);
-    expect(mat().calls.length - matBefore).toBeGreaterThan(30);
+    expect(keyboard().calls.length - keyboardBefore).toBeGreaterThan(30);
     expect(console.warn).toHaveBeenCalledTimes(1);
 
     lights.update(macState({ away: true }));
@@ -112,7 +112,7 @@ describe('DeskLights', () => {
     lights.update(macState());
     vi.advanceTimersByTime(2000);
     mouse().fail = true;
-    lights.show(ATTENTION);
+    lights.attention();
     vi.advanceTimersByTime(9000); // past the end of the wave
     mouse().fail = false;
     vi.advanceTimersByTime(30 * 1000);
@@ -135,13 +135,28 @@ describe('DeskLights', () => {
     expect(lastKey).toEqual(WHITE); // not yet
   });
 
-  it('rolls the attention wave and then hands back', () => {
+  it('rolls the attention wave over the keyboard, flashes the mouse as it turns, then hands back', () => {
     lights.update(macState());
     vi.advanceTimersByTime(2000);
-    lights.show(ATTENTION);
-    vi.advanceTimersByTime(900); // the band is passing the mouse
-    expect(mouse().last('setModeStaticNoStore')[0]).not.toEqual(WHITE);
+    lights.attention();
+    vi.advanceTimersByTime(600); // the band is crossing the keyboard; the mouse waits
+    expect(keyboard().last('setCustomFrame')).toBeDefined();
+    expect(mouse().last('setModeStaticNoStore')).toEqual([WHITE]);
+    vi.advanceTimersByTime(700); // the band turns past the keyboard's right end
+    const [[r, g, b]] = mouse().last('setModeStaticNoStore');
+    expect([r, g, b]).toEqual([255, expect.closeTo(90, -1), expect.closeTo(20, -1)]);
     vi.advanceTimersByTime(10 * 1000);
+    expect(mouse().last('setModeStaticNoStore')).toEqual([WHITE]);
+  });
+
+  it('stops the attention wave early', () => {
+    lights.update(macState());
+    vi.advanceTimersByTime(2000);
+    lights.attention();
+    vi.advanceTimersByTime(1000);
+    lights.calmDown();
+    vi.advanceTimersByTime(1000);
+    expect(lights.has(ATTENTION.id)).toBe(false);
     expect(mouse().last('setModeStaticNoStore')).toEqual([WHITE]);
   });
 
@@ -224,7 +239,7 @@ describe('DeskLights', () => {
     lights.update(macState());
     vi.advanceTimersByTime(2000);
     mouse().fail = true;
-    lights.show(ATTENTION);
+    lights.attention();
     vi.advanceTimersByTime(5000);
     expect(health).toHaveBeenCalledTimes(1);
     expect(lights.isFailing(mouse())).toBe(true);

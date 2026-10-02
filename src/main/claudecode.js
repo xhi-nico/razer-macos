@@ -1,28 +1,31 @@
-// Claude Code sessions on the keyboard's top row, one segment each (oldest on
-// the left), under the call lights. Motion means busy, steady means your turn.
-const STATES = {
-  working: { color: [217, 119, 87], effect: 'wave', period: 3, duration: 60 * 60 },
-  waiting: { color: [0, 200, 60], effect: 'solid', duration: 4 * 60 * 60 },
-  errored: { color: [255, 0, 0], effect: 'pulse', period: 1.2, duration: 4 * 60 * 60 },
-};
-const PRIORITY = 20;
-const GROUP = 'claude-code';
+// Claude Code on the desk: only when a session is blocked on you (a permission
+// prompt, a question, a plan to approve) does the attention wave roll, and it
+// rolls again every minute until you answer. Working and finished replies show
+// nothing.
+const REMIND_MS = 60 * 1000;
+// A session that was killed while waiting never answers; stop reminding after this long.
+const GIVE_UP_MS = 60 * 60 * 1000;
 
-// Hook event -> state. Notifications only count when Claude needs you.
-const NEEDS_YOU = ['permission_prompt', 'idle_prompt', 'elicitation_dialog', 'elicitation_url_dialog', 'agent_needs_input'];
+// Notifications that mean Claude cannot go on without you. A permission prompt
+// only notifies after about 6 s unanswered, so answering at once shows nothing.
+// `idle_prompt` (a finished reply left unread) is not one of them.
+const NEEDS_YOU = ['permission_prompt', 'elicitation_dialog', 'elicitation_url_dialog', 'agent_needs_input'];
+// Tools whose whole job is asking you something.
+const ASKS_YOU = ['AskUserQuestion', 'ExitPlanMode'];
+
+// Hook event -> 'needs' (blocked on you), 'done' (you answered, or it moved on), or null.
 function stateFor(event) {
   switch (event.hook_event_name) {
-    case 'UserPromptSubmit':
-    case 'PostToolUse': // also the first sign of work after you approve a permission prompt
-      return 'working';
-    case 'Stop':
-      return 'waiting';
     case 'Notification':
-      return NEEDS_YOU.includes(event.notification_type) ? 'waiting' : null;
+      return NEEDS_YOU.includes(event.notification_type) ? 'needs' : null;
+    case 'PreToolUse':
+      return ASKS_YOU.includes(event.tool_name) ? 'needs' : null;
+    case 'UserPromptSubmit':
+    case 'PostToolUse':
+    case 'Stop':
     case 'StopFailure':
-      return 'errored';
     case 'SessionEnd':
-      return 'ended';
+      return 'done';
     default:
       return null;
   }
@@ -30,32 +33,46 @@ function stateFor(event) {
 
 /**
  * Turns Claude Code's hook events (their JSON, posted to /claude-code) into
- * top-row layers. Starting to wait also rolls the attention wave once.
+ * the attention wave. One wave covers every session that needs you.
  */
 export class ClaudeCodeSessions {
   constructor(lights) {
     this.lights = lights;
-    this.states = new Map(); // session id -> last state shown
+    this.waiting = new Map(); // session id -> when it started needing you
+    this.timer = null;
   }
 
   handle(event) {
     const session = typeof event?.session_id === 'string' ? event.session_id.slice(0, 48) : null;
     const state = session && stateFor(event);
-    if (!state) {
-      return;
+    if (state === 'needs') {
+      if (!this.waiting.has(session)) {
+        this.waiting.set(session, Date.now());
+        this.lights.attention();
+      }
+      this.timer ??= setInterval(() => this.remind(), REMIND_MS);
+    } else if (state === 'done' && this.waiting.delete(session) && this.waiting.size === 0) {
+      this.stop();
+      this.lights.calmDown();
     }
-    const id = `claude:${session}`;
-    if (state === 'ended') {
-      this.states.delete(session);
-      this.lights.cancel(id);
-      return;
-    }
-    // A session that was killed never ends; its layer runs out, and its entry here is a few bytes.
-    const previous = this.lights.has(id) ? this.states.get(session) : null;
-    this.states.set(session, state);
-    this.lights.show({ id, region: 'toprow', group: GROUP, priority: PRIORITY, ...STATES[state] });
-    if (state === 'waiting' && previous !== 'waiting') {
+  }
+
+  remind() {
+    const now = Date.now();
+    this.waiting.forEach((since, session) => {
+      if (now - since > GIVE_UP_MS) {
+        this.waiting.delete(session);
+      }
+    });
+    if (this.waiting.size === 0) {
+      this.stop();
+    } else {
       this.lights.attention();
     }
+  }
+
+  stop() {
+    clearInterval(this.timer);
+    this.timer = null;
   }
 }

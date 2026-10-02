@@ -7,7 +7,7 @@ const MUSIC = {
   effect: 'bars',
   color: ['#7800ff', '#0050ff', '#00dcc8'],
   dim: 0.85,
-  // Over Claude Code's sessions, under the call lights and the attention wave.
+  // Under the call lights and the attention wave.
   priority: 25,
 };
 // A band shows empty at the first and full at the second, in dB from a full-scale sine.

@@ -12,7 +12,6 @@ describe('ClaudeCodeSessions', () => {
   let lights, sessions;
   const hook = (session_id, hook_event_name, extra = {}) => sessions.handle({ session_id, hook_event_name, ...extra });
   const layers = () => lights.layers.status(Date.now());
-  const layer = id => layers().find(shown => shown.id === `claude:${id}`);
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -24,52 +23,69 @@ describe('ClaudeCodeSessions', () => {
   });
 
   afterEach(() => {
+    sessions.stop();
     lights.setAuto(false);
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
-  it('follows a session from working to waiting to gone', () => {
-    hook('a', 'UserPromptSubmit');
-    expect(layer('a')).toMatchObject({ region: 'toprow', effect: 'wave', group: 'claude-code' });
-    hook('a', 'Stop');
-    expect(layer('a')).toMatchObject({ effect: 'solid', color: '#00c83c' });
-    hook('a', 'SessionEnd');
-    vi.advanceTimersByTime(1000);
-    expect(layer('a')).toBeUndefined();
-  });
+  const rolling = () => lights.has('attention');
 
-  it('rolls the attention wave once when a session starts waiting', () => {
+  it('shows nothing while Claude works or finishes a reply', () => {
     hook('a', 'UserPromptSubmit');
+    hook('a', 'PostToolUse', { tool_name: 'Bash' });
     hook('a', 'Stop');
-    expect(layers().map(shown => shown.id)).toContain('attention');
-    vi.advanceTimersByTime(10 * 1000);
     hook('a', 'Notification', { notification_type: 'idle_prompt' });
-    expect(layers().map(shown => shown.id)).not.toContain('attention');
+    expect(layers()).toEqual([]);
   });
 
-  it('goes back to working after a permission prompt is answered', () => {
+  it('rolls the wave when Claude needs you, and stops it once you answer', () => {
     hook('a', 'UserPromptSubmit');
     hook('a', 'Notification', { notification_type: 'permission_prompt' });
-    expect(layer('a').effect).toBe('solid');
-    hook('a', 'PostToolUse');
-    expect(layer('a').effect).toBe('wave');
+    expect(rolling()).toBe(true);
+    vi.advanceTimersByTime(2000);
+    hook('a', 'PostToolUse', { tool_name: 'Bash' });
+    vi.advanceTimersByTime(1000);
+    expect(rolling()).toBe(false);
+    vi.advanceTimersByTime(5 * 60 * 1000);
+    expect(rolling()).toBe(false);
   });
 
-  it('shows an error until the next prompt', () => {
-    hook('a', 'UserPromptSubmit');
-    hook('a', 'StopFailure', { error_type: 'rate_limit' });
-    expect(layer('a')).toMatchObject({ effect: 'pulse', color: '#ff0000' });
-    hook('a', 'UserPromptSubmit');
-    expect(layer('a').effect).toBe('wave');
+  it('counts a question or a plan to approve as needing you', () => {
+    hook('a', 'PreToolUse', { tool_name: 'Bash' });
+    expect(rolling()).toBe(false);
+    hook('a', 'PreToolUse', { tool_name: 'AskUserQuestion' });
+    expect(rolling()).toBe(true);
+    hook('a', 'PostToolUse', { tool_name: 'AskUserQuestion' });
+    hook('b', 'PreToolUse', { tool_name: 'ExitPlanMode' });
+    expect(rolling()).toBe(true);
   });
 
-  it('gives each session its own segment, and ignores what is not about you', () => {
-    hook('a', 'UserPromptSubmit');
-    hook('b', 'UserPromptSubmit');
+  it('reminds every minute until you answer, and gives up after an hour', () => {
+    hook('a', 'Notification', { notification_type: 'permission_prompt' });
+    vi.advanceTimersByTime(30 * 1000);
+    expect(rolling()).toBe(false);
+    vi.advanceTimersByTime(31 * 1000);
+    expect(rolling()).toBe(true);
+    vi.advanceTimersByTime(60 * 60 * 1000);
+    expect(rolling()).toBe(false);
+    expect(sessions.timer).toBeNull();
+  });
+
+  it('keeps waving while any session still needs you', () => {
+    hook('a', 'Notification', { notification_type: 'permission_prompt' });
+    hook('b', 'Notification', { notification_type: 'elicitation_dialog' });
+    hook('a', 'Stop');
+    expect(rolling()).toBe(true);
+    hook('b', 'SessionEnd');
+    vi.advanceTimersByTime(1000);
+    expect(rolling()).toBe(false);
+  });
+
+  it('ignores what is not about you', () => {
     hook('c', 'Notification', { notification_type: 'auth_success' });
-    hook(undefined, 'Stop');
+    hook(undefined, 'Notification', { notification_type: 'permission_prompt' });
     sessions.handle(null);
-    expect(layers().map(shown => shown.id)).toEqual(['claude:b', 'claude:a']);
+    expect(layers()).toEqual([]);
   });
 });

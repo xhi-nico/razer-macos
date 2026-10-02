@@ -30,19 +30,19 @@ version number.
   a device in, or waking from sleep, picks up the current look. Picking a colour or effect by
   hand switches Auto off; brightness does not.
 - Warm white after sunset (from the time zone's coordinates), shifting over half an hour.
-- A local lights API on `127.0.0.1:47820`: show a colour (solid, pulse or wave) on the desk,
+- A local lights API on `127.0.0.1:47820`: show a colour (solid, pulse, wave or flash) on the desk,
   keyboard, top row, mouse or mat for a while, with a priority, an id to update or cancel it,
   groups that split a region, and a status endpoint.
-- An attention wave (an orange band across every device and back, three times) on `POST
-  127.0.0.1:47820/attention`.
-- Claude Code sessions on the keyboard's top row, one segment each: a coral wave while working,
-  steady green when waiting on you (with one attention wave), a red pulse after an API error.
-  Fed by Claude Code's hooks posting to `/claude-code`.
+- An attention wave (an orange band across the keyboard and back, three times, the mouse
+  flashing each time it turns) on `POST 127.0.0.1:47820/attention`.
+- Claude Code: the attention wave rolls when a session is blocked on you (a permission prompt,
+  a question, a plan to approve), and again every minute until you answer. Fed by Claude
+  Code's hooks posting to `/claude-code`.
 - Call lights on the keyboard's top row: a slow deep purple pulse while a camera or mic is on.
 - A live magenta voice meter over the call lights: it fills the top row from the left with
   whoever is talking (your mic, or what the call app plays), with a held peak.
 - The mouse mirrors the top row's call pulse and meeting countdown, and the top row
-  crossfades between them. The attention wave now shows over the top row too.
+  crossfades between them. The attention wave shows over the top row too.
 - A meeting countdown on the keyboard's top row, from the Mac's Calendar: it fills over the
   last minute, then pulses faster until a camera or mic turns on, for up to 3 minutes.
 - `librazermacos`: `razer_set_skip_responses`, so lighting frames are sent without waiting

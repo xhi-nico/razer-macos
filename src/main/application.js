@@ -55,7 +55,7 @@ export class Application {
     });
 
     this.app.on('quit', () => {
-      [this.music, this.panic, this.battery, this.lightsApi, this.signals].forEach(feature => feature?.stop());
+      [this.sessions, this.music, this.panic, this.battery, this.lightsApi, this.signals].forEach(feature => feature?.stop());
       this.razerApplication.destroy();
     });
   }
@@ -96,9 +96,9 @@ export class Application {
     this.signals.start();
     this.lightsApi = new LightsApi(lights);
     // Claude Code's hooks post their JSON here. Always a 204: nothing to tell Claude Code.
-    const sessions = new ClaudeCodeSessions(lights);
+    this.sessions = new ClaudeCodeSessions(lights);
     this.lightsApi.route('POST', /^\/claude-code$/, async request => {
-      sessions.handle(await readJson(request).catch(() => null));
+      this.sessions.handle(await readJson(request).catch(() => null));
     });
     this.lightsApi.start();
     this.battery = new BatteryWatch(lights, () => this.razerApplication.deviceManager.activeRazerDevices);

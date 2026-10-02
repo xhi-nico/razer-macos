@@ -37,7 +37,7 @@ export function readJson(request) {
  *   GET    /status      what the desk shows, every layer, which devices answer
  *   POST   /attention   the attention wave (DeskLights.attention); ignored while one is rolling
  *
- * `route` adds more (Claude Code's states).
+ * `route` adds more (Claude Code's hooks).
  */
 export class LightsApi {
   constructor(lights) {

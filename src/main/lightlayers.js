@@ -1,10 +1,9 @@
 // Layers shown over Auto lights for a while: "this colour, this effect, on this
 // region, for this long". The local lights API (lightsapi.js) creates them; the
-// attention wave, Claude Code's session states, a low battery and the music
-// visualiser are layers too.
+// attention wave, a low battery and the music visualiser are layers too.
 
 export const REGIONS = ['desk', 'keyboard', 'toprow', 'mouse', 'mat'];
-export const EFFECTS = ['solid', 'pulse', 'wave', 'bars'];
+export const EFFECTS = ['solid', 'pulse', 'wave', 'flash', 'bars'];
 
 // The built-in top row (meeting countdown, call lights) paints at this
 // priority: lower layers show under it, this or higher over it.
@@ -18,9 +17,11 @@ const MAX_ID_LENGTH = 64;
 const MAX_COLORS = 8;
 const MAX_LEVELS = 64;
 const BLACK = [0, 0, 0];
-// A pulse breathes once per period; a wave rolls across its region and back once per period.
-const DEFAULT_PERIOD = { pulse: 2, wave: 2.6 };
+// A pulse breathes once per period; a wave rolls across its region and back once per period;
+// a flash blinks halfway through each period, as a wave of the same period turns at the far end.
+const DEFAULT_PERIOD = { pulse: 2, wave: 2.6, flash: 2.6 };
 const WAVE_WIDTH = 0.3;
+const FLASH_HALF_MS = 180;
 // Layers ease in and out rather than cutting.
 const FADE_IN_MS = 200;
 const FADE_OUT_MS = 400;
@@ -145,6 +146,10 @@ function effectAmount(layer, elapsed, at, levels) {
   if (layer.effect === 'pulse') {
     return 0.5 - 0.5 * Math.cos(2 * Math.PI * elapsed / layer.periodMs);
   }
+  if (layer.effect === 'flash') {
+    const fromMiddle = Math.abs((elapsed % layer.periodMs) - layer.periodMs / 2);
+    return easeInOut(clamp01(1 - fromMiddle / FLASH_HALF_MS));
+  }
   if (layer.effect === 'wave') {
     const t = (elapsed / layer.periodMs) % 1;
     const there = easeInOut(t < 0.5 ? t * 2 : 2 - t * 2);
@@ -225,14 +230,14 @@ export class LightLayers {
   }
 
   // How often the layers need painting right now: 'fast' while something
-  // moves quickly (a wave, bars, a fade), 'slow' for slow pulses only (a long
+  // moves quickly (a wave, a flash, bars, a fade), 'slow' for slow pulses only (a long
   // low-battery or error pulse need not cost 33 frames a second), else null.
   pace(now) {
     this.prune(now);
     let pace = null;
     for (const layer of this.layers.values()) {
       const fading = now - layer.startedAt < FADE_IN_MS || layer.endsAt - now <= FADE_OUT_MS || now - layer.changedAt < CHANGE_MS;
-      if (fading || layer.effect === 'wave' || layer.effect === 'bars' || (layer.effect === 'pulse' && layer.periodMs < SLOW_PULSE_MS)) {
+      if (fading || ['wave', 'flash', 'bars'].includes(layer.effect) || (layer.effect === 'pulse' && layer.periodMs < SLOW_PULSE_MS)) {
         return 'fast';
       }
       if (layer.effect === 'pulse') {
