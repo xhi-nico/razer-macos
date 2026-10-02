@@ -135,14 +135,14 @@ describe('DeskLights', () => {
     expect(lastKey).toEqual(WHITE); // not yet
   });
 
-  it('rolls the attention wave over the keyboard, flashes the mouse as it turns, then hands back', () => {
+  it('rolls the attention wave over the keyboard, pulses the mouse in step, then hands back', () => {
     lights.update(macState());
     vi.advanceTimersByTime(2000);
     lights.attention();
-    vi.advanceTimersByTime(600); // the band is crossing the keyboard; the mouse waits
+    vi.advanceTimersByTime(870); // the band is crossing the keyboard; the mouse is dark between pulses
     expect(keyboard().last('setCustomFrame')).toBeDefined();
-    expect(mouse().last('setModeStaticNoStore')).toEqual([WHITE]);
-    vi.advanceTimersByTime(700); // the band turns past the keyboard's right end
+    expect(Math.max(...mouse().last('setModeStaticNoStore')[0])).toBeLessThan(30);
+    vi.advanceTimersByTime(430); // the band turns past the keyboard's right end
     const [[r, g, b]] = mouse().last('setModeStaticNoStore');
     expect([r, g, b]).toEqual([255, expect.closeTo(90, -1), expect.closeTo(20, -1)]);
     vi.advanceTimersByTime(10 * 1000);

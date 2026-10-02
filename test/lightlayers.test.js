@@ -60,19 +60,6 @@ describe('LightLayers', () => {
     expect(level(500, 0)).toBe(0);
     expect(level(750, 1)).toBeGreaterThan(level(750, 0.5)); // reaching the far end
   });
-
-  it('flashes as a wave of the same period rolls off the far end and turns', () => {
-    const layers = new LightLayers();
-    layers.show({ color: [255, 255, 255], effect: 'flash', period: 2, duration: 6 }, 0);
-    const level = now => layers.painters(now, () => true)[0]([0, 0, 0], { desk: null })[0];
-    expect(level(1000)).toBe(255); // the wave turns
-    expect(level(3000)).toBe(255);
-    expect(level(850)).toBeGreaterThan(0); // rolling off the end
-    expect(level(850)).toBeLessThan(255);
-    expect(level(500)).toBe(0); // still crossing
-    expect(level(1500)).toBe(0);
-    expect(layers.pace(700)).toBe('fast');
-  });
 });
 
 describe('LightLayers updates', () => {

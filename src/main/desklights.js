@@ -45,7 +45,7 @@ const OTHER_POSITION = 0.75;
 const SWEEP_EDGE = 0.35;
 
 // Claude needs you: an orange band rolls across the keyboard and back, three times, over the
-// call lights, flowing on into the mouse each time it rolls off the keyboard's right end.
+// call lights, while the mouse pulses orange from dark three times a pass, brightest as the band turns.
 export const ATTENTION = {
   id: 'attention',
   region: 'keyboard',
@@ -55,7 +55,7 @@ export const ATTENTION = {
   duration: 7.8,
   priority: CALL_PRIORITY + 10,
 };
-const ATTENTION_FLASH = { ...ATTENTION, id: 'attention:mouse', region: 'mouse', effect: 'flash' };
+const ATTENTION_MOUSE = { ...ATTENTION, id: 'attention:mouse', region: 'mouse', effect: 'pulse', period: ATTENTION.period / 3, dim: 1 };
 
 // Next meeting: the keyboard's top row fills amber over the last minute (the
 // mouse warms with it), then both pulse faster and faster until a mic turns on
@@ -289,14 +289,14 @@ export class DeskLights {
   attention() {
     const now = Date.now();
     if (!this.layers.has(ATTENTION.id, now)) {
-      [ATTENTION, ATTENTION_FLASH].forEach(spec => this.layers.show(spec, now));
+      [ATTENTION, ATTENTION_MOUSE].forEach(spec => this.layers.show(spec, now));
       this.renderSoon();
     }
   }
 
   // Stops the attention wave early (fades it out).
   calmDown() {
-    [ATTENTION, ATTENTION_FLASH].forEach(({ id }) => this.cancel(id));
+    [ATTENTION, ATTENTION_MOUSE].forEach(({ id }) => this.cancel(id));
   }
 
   // Paints now, unless a frame is due anyway: a burst of hook posts then costs one frame, not one each.
