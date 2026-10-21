@@ -33,7 +33,7 @@ T readAudioValue(AudioObjectID object, AudioObjectPropertySelector selector, T f
 // Every app's process object, except this app's own: it records too, while measuring the call.
 std::vector<AudioObjectID> otherAudioProcesses();
 
-// The other apps recording from a microphone right now.
+// The other apps recording from a microphone right now, except dictation apps.
 std::vector<AudioObjectID> otherAppsRecording();
 
 // Whether any other app is playing audio right now (possibly silence).

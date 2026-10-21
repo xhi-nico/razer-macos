@@ -1,6 +1,24 @@
 #include <unistd.h>
+#include <algorithm>
+#include <cctype>
 
 #include "audioprocesses.h"
+
+// Dictation apps record the mic for a few seconds at a time; that is not a call.
+// Each also covers its helpers (an ID starting with it and a dot).
+static const char *DICTATION_APPS[] = {
+    "com.electron.wispr-flow",
+    "com.superduper.superwhisper",
+    "com.goodsnooze.macwhisper",
+};
+
+static bool isDictationApp(AudioObjectID process) {
+    std::string bundleId = audioProcessBundleId(process);
+    std::transform(bundleId.begin(), bundleId.end(), bundleId.begin(), ::tolower);
+    return std::any_of(std::begin(DICTATION_APPS), std::end(DICTATION_APPS), [&](const std::string &app) {
+        return bundleId == app || bundleId.rfind(app + ".", 0) == 0;
+    });
+}
 
 std::vector<AudioObjectID> otherAudioProcesses() {
     std::vector<AudioObjectID> processes;
@@ -27,7 +45,9 @@ static std::vector<AudioObjectID> othersWhere(AudioObjectPropertySelector runnin
 }
 
 std::vector<AudioObjectID> otherAppsRecording() {
-    return othersWhere(kAudioProcessPropertyIsRunningInput);
+    std::vector<AudioObjectID> recording = othersWhere(kAudioProcessPropertyIsRunningInput);
+    recording.erase(std::remove_if(recording.begin(), recording.end(), isDictationApp), recording.end());
+    return recording;
 }
 
 bool otherAppsPlaying() {

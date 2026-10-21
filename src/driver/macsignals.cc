@@ -100,7 +100,8 @@ Napi::Boolean IsCameraInUse(const Napi::CallbackInfo &info) {
 /**
  * True while any other app is recording from a microphone. Asks per app rather
  * than per device, because a headset playing music runs its mic's device too.
- * Leaves this app out, since it records while measuring the call's voices.
+ * Leaves this app out, since it records while measuring the call's voices, and
+ * dictation apps such as Wispr Flow, which record for a moment and are not calls.
  * Like the camera check, this opens nothing, so it needs no microphone permission.
  */
 Napi::Boolean IsMicInUse(const Napi::CallbackInfo &info) {

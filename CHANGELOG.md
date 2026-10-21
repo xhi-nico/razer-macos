@@ -40,6 +40,7 @@ version number.
   a question, a plan to approve), and again every minute until you answer. Fed by Claude
   Code's hooks posting to `/claude-code`.
 - Call lights on the keyboard's top row: a slow deep purple pulse while a camera or mic is on.
+  Dictation apps (Wispr Flow, superwhisper, MacWhisper) using the mic don't count as a call.
 - A live magenta voice meter over the call lights: it fills the top row from the left with
   whoever is talking (your mic, or what the call app plays), with a held peak.
 - The mouse mirrors the top row's call pulse and meeting countdown, and the top row

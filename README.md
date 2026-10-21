@@ -35,7 +35,8 @@ sunset, and back over the half hour after sunrise. Sunset is worked out from the
 zone (its city in the system's `zone.tab`), so it needs no location permission.
 
 **On a call.** The keyboard's top row and the mouse pulse slowly in deep purple while any
-camera is on or any microphone is recording, dictation included. The rest of the desk keeps its
+camera is on or any microphone is recording. Dictation apps (Wispr Flow, superwhisper,
+MacWhisper) don't count, so dictating never lights the call or opens the mic. The rest of the desk keeps its
 look, and locking clears it. Whenever the top row changes what it shows, it crossfades over half
 a second. Unlocking sweeps white in from the left; touching anything after idling wakes the desk
 in a quarter second. Plugging in a device gives it the current look within a second or two.
