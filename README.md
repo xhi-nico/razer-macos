@@ -60,7 +60,10 @@ dims and becomes a spectrum: each key is one band, bass on the left, lit from vi
 blue to cyan by how loud it is. It hands back after three seconds of silence, and a call
 takes over the row at once. It listens to everything the Mac plays, so macOS
 shows its system audio recording indicator while it runs (the same permission as the call
-meter, macOS 14.2 or later). Only the spectrum is measured; nothing is recorded.
+meter, macOS 14.2 or later), and for two minutes after the sound stops, since starting to
+listen again for every sound can delay that sound. Only the spectrum is measured; nothing is
+recorded. **Music on the keyboard** in the menu turns it off, and then the app never listens to
+the Mac's sound.
 
 **Low battery.** A wireless mouse under 15% that is not charging pulses amber, until it is
 plugged in or charged. The charge is read every two minutes. On its cable the Pro Click V2

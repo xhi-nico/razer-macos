@@ -103,7 +103,7 @@ export class Application {
     this.lightsApi.start();
     this.battery = new BatteryWatch(lights, () => this.razerApplication.deviceManager.activeRazerDevices);
     this.battery.start();
-    this.music = new MusicVisualiser(lights, addon);
+    this.music = new MusicVisualiser(lights, addon, this.razerApplication.settingsManager);
     this.music.start();
     this.panic = new PanicButton(addon, () => this.setPlain(!lights.plain));
     this.panic.onBlockedChange = () => this.refreshTray();

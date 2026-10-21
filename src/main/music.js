@@ -19,22 +19,42 @@ const FALL_MS = 160;
 const FOLLOW_MS = 1500;
 const SOUND_RMS = 0.002;
 const SILENT_MS = 3000;
+const SETTINGS_KEY = 'musicVisualiser';
 
 const toLevel = db => Math.min(1, Math.max(0, (db - QUIET_DB) / (LOUD_DB - QUIET_DB)));
 
 /**
  * Listens to everything the Mac plays (the system audio tap in musicaudio.mm)
- * while layers show (Auto lights on, the Mac here, no plain hold) and no camera
- * or mic is on: a call gets the call meter instead. Only loudness and spectrum are measured.
+ * while it is on (the menu's "Music on the keyboard"), layers show (Auto lights
+ * on, the Mac here, no plain hold) and no camera or mic is on: a call gets the
+ * call meter instead. Only loudness and spectrum are measured.
  */
 export class MusicVisualiser {
-  constructor(lights, addon) {
+  constructor(lights, addon, settingsManager) {
     this.lights = lights;
     this.addon = addon;
+    this.settingsManager = settingsManager;
     this.levels = new Array(BANDS).fill(0);
     this.readAt = 0;
     this.soundAt = -Infinity;
     this.listening = false;
+    let saved = {};
+    try {
+      saved = settingsManager.getKeySync(SETTINGS_KEY);
+    } catch (error) {
+      console.warn('Music settings unreadable, using defaults', error);
+    }
+    this.on = saved.on !== false;
+  }
+
+  setOn(on) {
+    this.on = on;
+    try {
+      this.settingsManager.setKeySync(SETTINGS_KEY, { on });
+    } catch (error) {
+      console.warn('Music settings not saved', error);
+    }
+    this.follow();
   }
 
   start() {
@@ -48,7 +68,7 @@ export class MusicVisualiser {
 
   follow(now = Date.now()) {
     const lights = this.lights;
-    if (!lights.layersShown() || lights.onAir) {
+    if (!this.on || !lights.layersShown() || lights.onAir) {
       this.quiet();
       return;
     }

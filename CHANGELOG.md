@@ -54,7 +54,8 @@ version number.
   five more taps or an hour; also **Plain lights** in the menu. Needs Input Monitoring, and
   offers the setting when it is missing.
 - A music visualiser on the keyboard's top row while the Mac plays sound and no call is on: the
-  row dims and each key lights with one band of the spectrum. The lights API gains `bars`
+  row dims and each key lights with one band of the spectrum. It keeps listening for two
+  minutes after the sound stops, and **Music on the keyboard** in the menu turns it off. The lights API gains `bars`
   (levels across a region), colour gradients and `dim`.
 - A wireless mouse under 15% that is not charging pulses amber.
 - A device that stops answering shows "⚠️ not answering" next to its name in the menu, until

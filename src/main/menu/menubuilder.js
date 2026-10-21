@@ -37,6 +37,15 @@ function getMainMenu(application) {
       },
     },
     getPlainItem(application),
+    ...(application.music ? [{
+      label: 'Music on the keyboard',
+      type: 'checkbox',
+      checked: application.music.on,
+      toolTip: 'The top row shows what the Mac plays. Off, the app never listens to the Mac\'s sound',
+      click(menuItem) {
+        application.music.setOn(menuItem.checked);
+      },
+    }] : []),
     ...(application.panic?.blocked ? [{
       label: 'Allow Input Monitoring for the panic button…',
       toolTip: 'The panic button needs it to see Control being tapped; it never sees which other keys you press',

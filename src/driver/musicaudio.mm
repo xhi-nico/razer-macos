@@ -1,5 +1,6 @@
 #include <napi.h>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <vector>
 #import <Accelerate/Accelerate.h>
@@ -13,6 +14,11 @@ namespace {
 Ring ring;
 Capture music;
 double sampleRate = 48000;
+// When any other app last played. Setting up a tap makes macOS rearrange its
+// audio, which can hold up the sound that just started, so the tap outlasts a
+// pause by this long rather than being rebuilt for every sound.
+std::chrono::steady_clock::time_point playedAt;
+constexpr auto KEEP_THROUGH_PAUSE = std::chrono::minutes(2);
 
 // 2048 samples is about 43 ms at 48 kHz: fine enough for the bass, quick enough for a beat.
 constexpr vDSP_Length FFT_LOG2 = 11;
@@ -25,15 +31,20 @@ constexpr double HIGHEST_HZ = 12000;
 
 /**
  * Listens to everything the Mac plays while any other app is playing, and stops
- * when none is. Cheap when nothing changed, so it can run every few seconds.
- * Returns { playing, listening }; listening stays false before macOS 14.2.
+ * once none has for a couple of minutes. Cheap when nothing changed, so it can
+ * run every few seconds. Returns { playing, listening }; listening stays false
+ * before macOS 14.2.
  */
 Napi::Object FollowMusicAudio(const Napi::CallbackInfo &info) {
     Napi::Env env = info.Env();
     bool playing = otherAppsPlaying();
-    if (!playing) {
+    auto now = std::chrono::steady_clock::now();
+    if (playing) {
+        playedAt = now;
+    }
+    if (!playing && now - playedAt >= KEEP_THROUGH_PAUSE) {
         music.stop();
-    } else if (music.target.empty()) {
+    } else if (playing && music.target.empty()) {
         // Tried once per stretch of playing, so a refused permission is not retried every follow.
         music.target = "everything";
         music.ring = &ring;

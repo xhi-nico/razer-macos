@@ -30,7 +30,7 @@ describe('MusicVisualiser', () => {
     lights = new DeskLights(fakeSettings(), addon, () => devices, noDaylight);
     lights.update(macState());
     vi.advanceTimersByTime(2000);
-    music = new MusicVisualiser(lights, addon);
+    music = new MusicVisualiser(lights, addon, fakeSettings());
     music.start();
   });
 
@@ -65,6 +65,23 @@ describe('MusicVisualiser', () => {
     vi.advanceTimersByTime(3000);
     expect(lights.layers.has('music', Date.now())).toBe(false);
     expect(addon.stopMusicAudio).toHaveBeenCalled();
+  });
+
+  it('switched off, stops listening and stays off', () => {
+    vi.advanceTimersByTime(3000);
+    music.setOn(false);
+    expect(addon.stopMusicAudio).toHaveBeenCalled();
+    addon.followMusicAudio.mockClear();
+    vi.advanceTimersByTime(6000);
+    expect(addon.followMusicAudio).not.toHaveBeenCalled();
+    expect(lights.layers.has('music', Date.now())).toBe(false);
+    expect(music.settingsManager.store.musicVisualiser).toEqual({ on: false });
+  });
+
+  it('starts off when it was switched off', () => {
+    const settings = fakeSettings();
+    settings.store.musicVisualiser = { on: false };
+    expect(new MusicVisualiser(lights, addon, settings).on).toBe(false);
   });
 
   const lastRow = () => devices[0].calls.filter(([method, frame]) => method === 'setCustomFrame' && frame[0] === 5).at(-1)?.[1];

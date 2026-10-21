@@ -52,7 +52,7 @@ A device needs two things, or it silently never appears:
   always sent as a shown one too. Anything that reads from a device while skipping is on gets
   garbage, so keep it scoped to a frame.
 - The voice bar records from the call's mic and taps the call app's audio, and the music
-  visualiser taps all system audio while any other app plays, so this app shows up as recording. The mic-in-use check leaves this app out; anything new that asks "is a mic on?"
+  visualiser taps all system audio while any other app plays and for two minutes after, so this app shows up as recording. The mic-in-use check leaves this app out; anything new that asks "is a mic on?"
   must too, or the call never ends. It also leaves out dictation apps (`DICTATION_APPS` in
   `audioprocesses.cc`): treating Wispr Flow as a call opened the mic alongside it on every dictation.
 - `uiohook-napi` (the ripple effect's key hook) needs Accessibility, and stopping it stops it for
