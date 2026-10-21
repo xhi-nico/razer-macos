@@ -24,10 +24,11 @@ keyboard on the left, mat underneath, mouse on the right.
 | No keyboard or mouse input for 5 minutes | A slow, dim white breath |
 | Working | White by day, warm white by night |
 
-Red is the only colour stored in the devices' own memory, so whenever they power up before the
-app can reach them (docking a locked or sleeping Mac, the login screen, the app not running)
-they show red. After devices connect, the app paints them again at 2 and 6 seconds, in case one
-was still starting up.
+Red is the only colour stored in the devices' own memory, so the mouse and mat power up red
+before the app can reach them (docking a locked or sleeping Mac, the login screen, the app not
+running). The Huntsman V2 TKL keyboard keeps nothing through a power cut: it powers up dark or
+cycling colours until the app paints it, about a second after it connects. After devices
+connect, the app paints them again at 2 and 6 seconds, in case one was still starting up.
 
 When more than one applies, the higher row wins. Day turns to night over the half hour after
 sunset, and back over the half hour after sunrise. Sunset is worked out from the Mac's time

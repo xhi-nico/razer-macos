@@ -473,16 +473,16 @@ export class DeskLights {
   }
 
   writeColor(device, rgb, store) {
-    // A stored colour is also showing, so it needs no second, unstored write.
+    // A stored colour was also shown, so it needs no second, unstored write.
     if (!store && this.written.get(device.internalId) === `stored ${rgb}`) {
       return;
     }
+    // A keyboard that just got power ignores a stored colour, so a stored one is also shown.
     this.writeIfChanged(device, `${store ? 'stored' : 'shown'} ${rgb}`, () => {
       if (store) {
         device.setModeStatic(rgb);
-      } else {
-        device.setModeStaticNoStore(rgb);
       }
+      device.setModeStaticNoStore(rgb);
     });
   }
 

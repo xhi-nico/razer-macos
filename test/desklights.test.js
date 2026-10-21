@@ -46,6 +46,8 @@ describe('DeskLights', () => {
     lights.update(macState({ away: true }));
     vi.advanceTimersByTime(2000);
     devices.forEach(device => expect(device.last('setModeStatic')).toEqual([RED]));
+    // A keyboard that just got power ignores the stored write, so the red is also shown.
+    devices.forEach(device => expect(device.last('setModeStaticNoStore')).toEqual([RED]));
   });
 
   it('starts from the red stored in the devices', () => {

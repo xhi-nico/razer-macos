@@ -21,9 +21,10 @@ version number.
 
 ### Added
 
-- Red is the only colour stored in the devices, so they power up red whenever the Mac is not
-  driving them yet (docking a locked Mac, the login screen). Devices that just connected are
-  painted again at 2 and 6 seconds, in case they missed the first write.
+- Red is the only colour stored in the devices, so the mouse and mat power up red whenever the
+  Mac is not driving them yet (docking a locked Mac, the login screen). Stored red is also sent
+  as a shown colour, since a keyboard that just got power ignores a stored one. Devices that
+  just connected are painted again at 2 and 6 seconds, in case they missed the first write.
 - **Auto lights**, on by default: every attached device shows one look picked from the Mac's
   state. White while working, a slow dim breath after 5 minutes without input, red when locked, switched away, asleep, logged out or quit (red is stored in
   the devices, so the login screen shows it). Unlocking sweeps white across the desk. Plugging

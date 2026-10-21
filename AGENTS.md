@@ -47,8 +47,10 @@ A device needs two things, or it silently never appears:
   New light features should be layers, not new branches in `paint`.
 - Animation frames are sent with `setSkipResponses(true)` and the no-store writes; a settled
   frame waits for replies, and only the settled red is stored in the devices, so they power up
-  red. Anything that reads from a device while skipping is on gets garbage, so keep it scoped
-  to a frame.
+  red. The Huntsman V2 TKL is the exception: it keeps nothing through a power cut, and right
+  after power-up it ignores a stored colour but takes a no-store one, so the stored red is
+  always sent as a shown one too. Anything that reads from a device while skipping is on gets
+  garbage, so keep it scoped to a frame.
 - The voice bar records from the call's mic and taps the call app's audio, and the music
   visualiser taps all system audio while any other app plays, so this app shows up as recording. The mic-in-use check leaves this app out; anything new that asks "is a mic on?"
   must too, or the call never ends.
