@@ -42,12 +42,14 @@ export class TapCounter {
 /**
  * Watches the keyboard for the panic taps. The watch needs Input Monitoring:
  * macOS asks once; while it is not granted, `blocked` is true and the menu
- * offers the setting.
+ * offers the setting. Taps while `armed` says no are ignored: at the lock
+ * screen, Control is what gets tapped to wake the display.
  */
 export class PanicButton {
-  constructor(addon, onPanic) {
+  constructor(addon, onPanic, armed = () => true) {
     this.addon = addon;
     this.onPanic = onPanic;
+    this.armed = armed;
     this.counter = new TapCounter();
     this.watching = null; // unknown until the first try
     this.onBlockedChange = () => {};
@@ -69,8 +71,13 @@ export class PanicButton {
     const was = this.watching;
     this.watching = this.addon.inputMonitoringAccess() === 'granted'
       && this.addon.startKeyWatch(event => {
-        if (this.counter.feed(event, Date.now())) {
+        if (!this.counter.feed(event, Date.now())) {
+          return;
+        }
+        if (this.armed()) {
           this.onPanic();
+        } else {
+          console.log('Panic button: ignored while the Mac is away');
         }
       });
     if (was !== this.watching) {

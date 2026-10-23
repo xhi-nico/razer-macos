@@ -105,7 +105,7 @@ export class Application {
     this.battery.start();
     this.music = new MusicVisualiser(lights, addon, this.razerApplication.settingsManager);
     this.music.start();
-    this.panic = new PanicButton(addon, () => this.setPlain(!lights.plain));
+    this.panic = new PanicButton(addon, () => this.setPlain(!lights.plain), () => !this.signals.state?.away);
     this.panic.onBlockedChange = () => this.refreshTray();
     this.panic.start();
   }

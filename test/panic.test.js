@@ -63,4 +63,22 @@ describe('PanicButton', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
+
+  it('ignores the taps while the Mac is away', () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const fake = addon('granted');
+    const onPanic = vi.fn();
+    let away = true;
+    const panic = new PanicButton(fake, onPanic, () => !away);
+    panic.start();
+    const feed = fake.startKeyWatch.mock.calls[0][0];
+    const fiveTaps = () => [1, 2, 3, 4, 5].forEach(() => [DOWN, UP].forEach(feed));
+    fiveTaps();
+    expect(onPanic).not.toHaveBeenCalled();
+    expect(console.log).toHaveBeenCalledWith('Panic button: ignored while the Mac is away');
+    away = false;
+    fiveTaps();
+    expect(onPanic).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
+  });
 });

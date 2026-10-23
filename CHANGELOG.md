@@ -72,6 +72,8 @@ version number.
 
 ### Fixed
 
+- Tapping Control to wake the display at the lock screen fired the panic button, which held
+  the plain look for an hour after unlocking. The taps are ignored while the Mac is away.
 - A crash after any device rescan: the native layer kept the freed device list, so the next
   menu click, settings change or tray click on an old device read freed memory. Old devices now
   throw an error that is logged, and a menu built before the rescan finds the live device.
