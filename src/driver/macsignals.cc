@@ -15,23 +15,11 @@ extern "C"
 #include "razerdevice.h"
 }
 
-static bool isRazer(io_service_t usbDevice) {
-    CFTypeRef vendorId = IORegistryEntryCreateCFProperty(usbDevice, CFSTR(kUSBVendorID), kCFAllocatorDefault, 0);
-    if (vendorId == NULL) {
-        return false;
-    }
-    SInt32 value = 0;
-    bool matches = CFGetTypeID(vendorId) == CFNumberGetTypeID()
-        && CFNumberGetValue((CFNumberRef) vendorId, kCFNumberSInt32Type, &value)
-        && value == USB_VENDOR_ID_RAZER;
-    CFRelease(vendorId);
-    return matches;
-}
-
 /**
  * Registry entry IDs of every attached Razer USB device, without opening any of them.
  * An ID changes whenever a device re-enumerates (unplug, replug, wake from sleep),
- * so a changed list means the open device handles are stale.
+ * so a changed list means the open device handles are stale. A device is listed
+ * here before it can be opened, and becoming openable changes nothing here.
  */
 Napi::Array ListRazerUsbEntries(const Napi::CallbackInfo &info) {
     Napi::Env env = info.Env();
@@ -52,7 +40,7 @@ Napi::Array ListRazerUsbEntries(const Napi::CallbackInfo &info) {
     io_service_t usbDevice;
     while ((usbDevice = IOIteratorNext(iter))) {
         uint64_t entryId = 0;
-        if (isRazer(usbDevice) && IORegistryEntryGetRegistryEntryID(usbDevice, &entryId) == KERN_SUCCESS) {
+        if (isRazerUsbEntry(usbDevice) && IORegistryEntryGetRegistryEntryID(usbDevice, &entryId) == KERN_SUCCESS) {
             entries[count++] = Napi::String::New(env, std::to_string(entryId));
         }
         IOObjectRelease(usbDevice);

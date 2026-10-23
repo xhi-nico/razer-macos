@@ -35,6 +35,10 @@ A device needs two things, or it silently never appears:
 - Every scan (`getAllDevices`) closes the open devices and numbers the new ones afresh, so a
   device object from before a rescan throws `not open`. Look devices up again with
   `deviceManager.resolve`, and write through `guard` or `forEachDevice`, never a bare loop.
+- A device is listed by `listRazerUsbEntries` before it can be opened, and becoming openable
+  changes nothing in the registry, so a scan at the wrong moment (docking a sleeping Mac) opens
+  nothing. `devicewatch.js` retries while the scan reports an open error (`lastOpenError`),
+  which is also in the log.
 - A USB failure (gone, stalled, 500 ms timeout) throws `USB request failed: <code>` from the
   addon. A device that replies "not supported" does not throw; the C driver only prints.
 - Brightness from the app is 0-100. The `razer_chroma_*` report builders scale it to 0-255

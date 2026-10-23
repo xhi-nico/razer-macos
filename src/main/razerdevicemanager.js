@@ -23,6 +23,7 @@ export class RazerDeviceManager {
     this.activeRazerDevices = [];
     this.lastRefresh = 0;
     this.refreshing = Promise.resolve(false);
+    this.openError = null; // the last scan's open error (addon.lastOpenError), when it could not open a Razer device
   }
 
   // Resolves true once the device list has been rebuilt, false when throttled.
@@ -43,7 +44,9 @@ export class RazerDeviceManager {
     this.activeRazerDevices.forEach(device => guard(`Stopping ${device.name}`, () => device.destroy()));
     this.activeRazerDevices = [];
 
-    const devices = await Promise.all(this.addon.getAllDevices().map(async foundDevice => {
+    const found = this.addon.getAllDevices();
+    this.openError = this.addon.lastOpenError();
+    const devices = await Promise.all(found.map(async foundDevice => {
       const configurationDevice = this.razerConfigDevices.find(d => d.productId === foundDevice.productId);
       if (configurationDevice === undefined) {
         console.log(`Devices: no device file for product 0x${foundDevice.productId.toString(16).padStart(4, '0')}`);

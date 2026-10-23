@@ -39,7 +39,9 @@ camera is on or any microphone is recording. Dictation apps (Wispr Flow, superwh
 MacWhisper) don't count, so dictating never lights the call or opens the mic. The rest of the desk keeps its
 look, and locking clears it. Whenever the top row changes what it shows, it crossfades over half
 a second. Unlocking sweeps white in from the left; touching anything after idling wakes the desk
-in a quarter second. Plugging in a device gives it the current look within a second or two.
+in a quarter second. Plugging in a device gives it the current look within a second or two; one
+that is plugged in but not ready yet (docking a sleeping Mac) is tried again over the next
+couple of minutes.
 
 **Who is talking.** While another app records, a magenta meter fills the top row from the left
 with the loudness of whoever is talking, you or them, live. The loudest moment holds its key for

@@ -72,6 +72,12 @@ version number.
 
 ### Fixed
 
+- Docking a sleeping Mac left the app with no devices until the next plug, so nothing turned
+  red on docking or white on unlocking, and the keyboard kept cycling colours. The dock wakes
+  the Mac for a few seconds; the one rescan ran while it dropped back to sleep and could open
+  nothing, and a device becoming openable changes nothing the app watched. A scan that could
+  not open a device is now run again (1 second, doubling to 30, for about two minutes), and
+  its error code is in the log.
 - Tapping Control to wake the display at the lock screen fired the panic button, which held
   the plain look for an hour after unlocking. The taps are ignored while the Mac is away.
 - A crash after any device rescan: the native layer kept the freed device list, so the next

@@ -18,6 +18,7 @@ function fakeAddon(products) {
       addon.events.push('scan');
       return products.map(productId => ({ productId, internalDeviceId: nextId++ }));
     }),
+    lastOpenError: () => null,
     closeAllDevices: vi.fn(),
   };
   return new Proxy(addon, { get: (target, name) => (name in target ? target[name] : () => 0) });
@@ -73,6 +74,16 @@ describe('RazerDeviceManager', () => {
     await manager.refreshRazerDevices(true);
     expect(manager.activeRazerDevices).toHaveLength(1);
     expect(manager.activeRazerDevices[0].settings).toBeDefined();
+  });
+
+  it('keeps the error code when the scan could not open a device', async () => {
+    const addon = withAddon(fakeAddon([MOUSE]));
+    addon.lastOpenError = () => 'e00002c5';
+    await manager.refreshRazerDevices(true);
+    expect(manager.openError).toBe('e00002c5');
+    addon.lastOpenError = () => null;
+    await manager.refreshRazerDevices(true);
+    expect(manager.openError).toBeNull();
   });
 
   it('leaves out a product it has no device file for', async () => {

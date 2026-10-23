@@ -7,6 +7,7 @@ import { ClaudeCodeSessions } from './claudecode';
 import { BatteryWatch } from './battery';
 import { MusicVisualiser } from './music';
 import { PanicButton } from './panic';
+import { DeviceWatch } from './devicewatch';
 import addon from '../driver';
 import { clearBatteryMode } from './menu/menubuilderdevice';
 import { guard } from './guard';
@@ -16,9 +17,6 @@ import { getLogFile } from './log';
 import trayIconPath from '../../static/assets/iconTemplate.png?asset';
 
 const version = require('../../package.json').version;
-
-// Wait for USB to settle after a plug event before re-reading the device list.
-const DEVICE_SETTLE_MS = 800;
 
 /**
  * Application is a small wrapper around an electron app (tray, dialog, colour panel...)
@@ -55,7 +53,7 @@ export class Application {
     });
 
     this.app.on('quit', () => {
-      [this.sessions, this.music, this.panic, this.battery, this.lightsApi, this.signals].forEach(feature => feature?.stop());
+      [this.sessions, this.music, this.panic, this.battery, this.lightsApi, this.deviceWatch, this.signals].forEach(feature => feature?.stop());
       this.razerApplication.destroy();
     });
   }
@@ -89,11 +87,9 @@ export class Application {
     this.signals = new MacSignals(addon, powerMonitor);
     this.signals.on('change', state => lights.update(state));
     this.signals.on('sleep', () => lights.sleepNow());
-    this.signals.on('devices', () => {
-      clearTimeout(this.deviceSettleTimer);
-      this.deviceSettleTimer = setTimeout(() => this.refreshTray(true, true), DEVICE_SETTLE_MS);
-    });
     this.signals.start();
+    this.deviceWatch = new DeviceWatch(this.signals, this.razerApplication.deviceManager, () => this.refreshTray(true, true));
+    this.deviceWatch.start();
     this.lightsApi = new LightsApi(lights);
     // Claude Code's hooks post their JSON here. Always a 204: nothing to tell Claude Code.
     this.sessions = new ClaudeCodeSessions(lights);

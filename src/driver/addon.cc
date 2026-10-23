@@ -23,7 +23,7 @@ extern "C"
 }
 
 // The devices open right now. Empty (NULL, 0) whenever none are, never dangling.
-RazerDevices devices = {NULL, 0};
+RazerDevices devices = {NULL, 0, kIOReturnSuccess};
 
 // Each scan numbers its devices from here on, so an ID from an earlier scan
 // never names a device from a later one; it is refused instead (see getRazerDeviceFor).
@@ -44,6 +44,13 @@ RazerDevice getRazerDeviceFor(const Napi::CallbackInfo &info) {
     throw Napi::Error::New(info.Env(), "Razer device " + std::to_string(internalDeviceId) + " is not open");
 }
 
+// An IOReturn as the 8 hex digits macOS prints it with (e00002c5).
+static std::string hexCode(IOReturn code) {
+    char text[16];
+    snprintf(text, sizeof(text), "%08x", code);
+    return text;
+}
+
 /**
  * Wraps a device function so a USB failure inside it (device gone, stalled,
  * timed out) throws, instead of passing silently as the driver would.
@@ -60,9 +67,7 @@ Napi::Value Guarded(const Napi::CallbackInfo &info) {
     }
     IOReturn error = razer_take_usb_error();
     if (error != kIOReturnSuccess && !env.IsExceptionPending()) {
-        char code[16];
-        snprintf(code, sizeof(code), "%08x", error);
-        Napi::Error failure = Napi::Error::New(env, std::string("USB request failed: ") + code);
+        Napi::Error failure = Napi::Error::New(env, "USB request failed: " + hexCode(error));
         failure.Set("usbError", Napi::Number::New(env, error));
         throw failure;
     }
@@ -924,7 +929,7 @@ void closeDevices() {
     if (devices.devices != NULL) {
         closeAllRazerDevices(devices);
     }
-    devices = {NULL, 0};
+    devices = {NULL, 0, kIOReturnSuccess};
 }
 
 // Rescans, closing whatever is open first: a device left open cannot be opened again.
@@ -946,6 +951,15 @@ Napi::Array GetAllDevices(const Napi::CallbackInfo &info) {
     }
 
     return razerDevices;
+}
+
+// The last scan's open error (see RazerDevices.openError) as hex, or null when it opened everything.
+Napi::Value LastOpenError(const Napi::CallbackInfo &info) {
+    Napi::Env env = info.Env();
+    if (devices.openError == kIOReturnSuccess) {
+        return env.Null();
+    }
+    return Napi::String::New(env, hexCode(devices.openError));
 }
 
 // See razer_set_skip_responses: for streaming lighting frames only.
@@ -1046,6 +1060,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     // All devices
     exports.Set("getAllDevices", Napi::Function::New(env, GetAllDevices));
     exports.Set("closeAllDevices", Napi::Function::New(env, CloseAllDevices));
+    exports.Set("lastOpenError", Napi::Function::New(env, LastOpenError));
 
     exports.Set("setSkipResponses", Napi::Function::New(env, SetSkipResponses));
     InitMacSignals(env, exports);
