@@ -9,8 +9,24 @@ name: agent-instructions
 #
 # This reads the git index, so it sees what was actually committed — catching
 # anything pushed with --no-verify or from a machine without the local hook.
+# It runs only when a file it checks changes, so busy repos don't spend Actions
+# minutes on pushes it has nothing to say about.
 
-on: [push, pull_request]
+on:
+  push:
+    paths:
+      - '**/AGENTS.md'
+      - '**/CLAUDE.md'
+      - '.agents/skills/**'
+      - '.claude/skills/**'
+      - '.github/workflows/agent-instructions.yml'
+  pull_request:
+    paths:
+      - '**/AGENTS.md'
+      - '**/CLAUDE.md'
+      - '.agents/skills/**'
+      - '.claude/skills/**'
+      - '.github/workflows/agent-instructions.yml'
 
 permissions:
   contents: read

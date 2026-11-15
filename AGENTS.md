@@ -30,6 +30,9 @@ A device needs two things, or it silently never appears:
 
 ## Facts that bite
 
+- Dependabot PRs merge themselves once `ci.yml` passes on them (`dependabot-merge.yml`): security
+  fixes, plus one grouped minor/patch update every Monday (`dependabot.yml`). A major version
+  waits for George. Nothing deploys; the installed app changes only when it is rebuilt by hand.
 - Only one process can hold a Razer device. While the app (or Razer Synapse) runs, anything else
   gets `Unable to open USB device: e00002c5`; quit the app before testing the library directly.
 - Every scan (`getAllDevices`) closes the open devices and numbers the new ones afresh, so a

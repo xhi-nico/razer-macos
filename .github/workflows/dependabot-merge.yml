@@ -1,0 +1,35 @@
+name: dependabot-merge
+
+# A Dependabot PR (a security fix, or the weekly update dependabot.yml sets up)
+# merges itself once this repo's own gate (ci.yml) passes on it.
+# A major version waits for George, since it can change behaviour. The built-in
+# auto-merge is no use here: it waits only on required checks, a paid feature on
+# private repos.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    uses: ./.github/workflows/ci.yml
+
+  merge:
+    needs: gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@v2
+      - if: steps.meta.outputs.update-type != 'version-update:semver-major'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr merge "$PR" --squash --delete-branch
