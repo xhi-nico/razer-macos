@@ -67,6 +67,11 @@ A device needs two things, or it silently never appears:
   Monitoring and reports Control down/up or "other key", never which key.
 - `package.json` pins `vite` in `resolutions`: without it yarn 1 nests a second copy under
   vitest and the install fails. Vitest stays on 4, since 5 refuses odd Node versions (25).
+- The other `resolutions` lift transitive packages to security fixes their parents have not
+  taken yet: `minimatch` 11 under electron-builder's `app-builder-lib` and
+  `@electron/universal`, and `glob` 14 under node-gyp's `cacache` (what newer cacache uses).
+  Drop each once the parent ships it. Minimatch 11 changed its internals, so never force it
+  onto glob 10 or older.
 - Calendar access needs `NSCalendarsFullAccessUsageDescription`, which only the packaged app's
   Info.plist has (`build.mac.extendInfo`); `yarn dev` reports calendar `unavailable`. The build
   is ad-hoc signed, so each new build may ask for Calendar access again.

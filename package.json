@@ -31,10 +31,13 @@
     "node-gyp": "^11.4.2",
     "prettier": "^3.6.2",
     "vite": "^8.2.2",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   },
   "resolutions": {
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "**/cacache/glob": "^14.0.3",
+    "**/app-builder-lib/minimatch": "^11.0.1",
+    "**/@electron/universal/minimatch": "^11.0.1"
   },
   "gypfile": true,
   "build": {
